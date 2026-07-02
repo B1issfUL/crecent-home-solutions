@@ -1,6 +1,6 @@
 import './StatisticsPanel.css';
 
-// Placeholder values only — no property data is calculated or retrieved.
+// Placeholder values only. No property data is calculated or retrieved.
 const STATS = [
   { value: '0', label: 'Properties Reviewed' },
   { value: '0 Days', label: 'Estimated Timeline' },

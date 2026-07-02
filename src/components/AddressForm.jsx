@@ -7,6 +7,11 @@ const PHONE_HREF = 'tel:+17372050102';
 const FORM_SUBJECT = 'New Cash Home Seller Lead';
 const SUBMISSION_COOLDOWN_MS = 60_000;
 const MIN_REVIEW_TIME_MS = 2_000;
+const ADDRESS_INCOMPLETE_MESSAGE =
+  'Please select a complete property address from the suggestions.';
+const ADDRESS_UNAVAILABLE_MESSAGE =
+  'Address search is temporarily unavailable. Please try again or call (+1) 737 205 0102.';
+const ADDRESS_SUGGESTIONS_ID = 'property-address-suggestions';
 
 const FORM_DEFAULTS = {
   name: '',
@@ -108,6 +113,7 @@ function normalizePlace(place) {
     getAddressComponent(addressComponents, 'locality') ||
     getAddressComponent(addressComponents, 'postal_town') ||
     getAddressComponent(addressComponents, 'sublocality') ||
+    getAddressComponent(addressComponents, 'administrative_area_level_2') ||
     getAddressComponent(addressComponents, 'administrative_area_level_3');
   const latitude =
     typeof place.location?.lat === 'function'
@@ -142,6 +148,15 @@ function normalizePlace(place) {
     Boolean(normalized.zip);
 
   return normalized;
+}
+
+function getPredictionText(prediction) {
+  return (
+    prediction?.text?.toString?.() ||
+    prediction?.structuredFormat?.mainText?.toString?.() ||
+    prediction?.description ||
+    ''
+  );
 }
 
 function getDigits(value) {
@@ -286,7 +301,7 @@ function LeadModal(props) {
     const nextErrors = {};
 
     if (!verifiedAddress?.isValid) {
-      nextErrors.property_address = 'Please select a complete property address from the suggestions.';
+      nextErrors.property_address = ADDRESS_INCOMPLETE_MESSAGE;
     }
 
     if (fields.name.trim().length < 2) {
@@ -387,6 +402,8 @@ function LeadModal(props) {
           <input type="hidden" name="subject" value={FORM_SUBJECT} />
           <input type="hidden" name="property_address" value={verifiedAddress.formattedAddress} />
           <input type="hidden" name="google_place_id" value={verifiedAddress.placeId} />
+          <input type="hidden" name="address_street_number" value={verifiedAddress.streetNumber} />
+          <input type="hidden" name="address_route" value={verifiedAddress.streetName} />
           <input type="hidden" name="address_city" value={verifiedAddress.city} />
           <input type="hidden" name="address_state" value={verifiedAddress.state} />
           <input type="hidden" name="address_postal_code" value={verifiedAddress.zip} />
@@ -597,10 +614,16 @@ export default function AddressForm() {
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const formspreeFormId = import.meta.env.VITE_FORMSPREE_FORM_ID;
   const [mapsStatus, setMapsStatus] = useState(googleMapsApiKey ? 'loading' : 'error');
+  const [placesLibrary, setPlacesLibrary] = useState(null);
   const [addressText, setAddressText] = useState('');
   const [verifiedAddress, setVerifiedAddress] = useState(null);
   const [addressTouched, setAddressTouched] = useState(false);
   const [addressError, setAddressError] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [addressSelecting, setAddressSelecting] = useState(false);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [touched, setTouched] = useState({ phone: false, email: false });
@@ -608,8 +631,9 @@ export default function AddressForm() {
   const [modalOpen, setModalOpen] = useState(false);
   const [successMessageVisible, setSuccessMessageVisible] = useState(false);
   const addressInputRef = useRef(null);
-  const autocompleteContainerRef = useRef(null);
-  const placeAutocompleteRef = useRef(null);
+  const addressFieldWrapRef = useRef(null);
+  const autocompleteSessionRef = useRef(null);
+  const requestSequenceRef = useRef(0);
   const phoneRef = useRef(null);
   const emailRef = useRef(null);
   const getOfferButtonRef = useRef(null);
@@ -622,111 +646,120 @@ export default function AddressForm() {
   useEffect(() => {
     if (!googleMapsApiKey) {
       setMapsStatus('error');
-      setAddressError('Address search is temporarily unavailable. Please try again or call.');
       return;
     }
 
     let cancelled = false;
-    let placeAutocomplete;
-    let inputListener;
-    let selectListener;
-    let legacySelectListener;
-
-    const handleTypedAddress = () => {
-      const currentValue = placeAutocomplete?.value || '';
-
-      setAddressText(currentValue);
-      setVerifiedAddress(null);
-      setAddressTouched(true);
-      setSuccessMessageVisible(false);
-      setAddressError(
-        currentValue.trim() ? 'Select your property address from the suggestions before continuing.' : '',
-      );
-    };
-
-    const handlePlaceSelect = async (event) => {
-      try {
-        const placePrediction = event.placePrediction || event.detail?.placePrediction;
-        const place = placePrediction?.toPlace?.();
-
-        if (!place) {
-          setVerifiedAddress(null);
-          setAddressError('Please select a complete property address from the suggestions.');
-          return;
-        }
-
-        await place.fetchFields({
-          fields: ['id', 'formattedAddress', 'addressComponents', 'location'],
-        });
-
-        if (cancelled) return;
-
-        const normalizedPlace = normalizePlace(place);
-        const nextAddressText =
-          normalizedPlace.formattedAddress || placeAutocomplete?.value || addressText;
-
-        setVerifiedAddress(normalizedPlace.isValid ? normalizedPlace : null);
-        setAddressText(nextAddressText);
-        setAddressTouched(true);
-        setSuccessMessageVisible(false);
-        setAddressError(
-          normalizedPlace.isValid
-            ? ''
-            : 'Please select a complete property address from the suggestions.',
-        );
-      } catch {
-        if (!cancelled) {
-          setVerifiedAddress(null);
-          setAddressError('Please select a complete property address from the suggestions.');
-        }
-      }
-    };
 
     loadGoogleMaps(googleMapsApiKey)
       .then(async () => {
-        const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
-
-        if (cancelled || !autocompleteContainerRef.current) return;
-
-        placeAutocomplete = new PlaceAutocompleteElement();
-        placeAutocomplete.id = 'property-address';
-        placeAutocomplete.placeholder = 'Enter your property address';
-        placeAutocomplete.includedRegionCodes = ['us'];
-        placeAutocomplete.className = 'address-autocomplete-element';
-        placeAutocomplete.setAttribute('aria-describedby', 'address-error privacy-note');
-        placeAutocomplete.setAttribute('aria-invalid', 'false');
-
-        inputListener = handleTypedAddress;
-        selectListener = handlePlaceSelect;
-        legacySelectListener = handlePlaceSelect;
-
-        placeAutocomplete.addEventListener('input', inputListener);
-        placeAutocomplete.addEventListener('gmp-select', selectListener);
-        placeAutocomplete.addEventListener('gmp-placeselect', legacySelectListener);
-
-        autocompleteContainerRef.current.replaceChildren(placeAutocomplete);
-        placeAutocompleteRef.current = placeAutocomplete;
-        addressInputRef.current = placeAutocomplete;
-
+        const places = await window.google.maps.importLibrary('places');
+        if (cancelled) return;
+        setPlacesLibrary(places);
         setMapsStatus('ready');
-        setAddressError('');
       })
       .catch(() => {
         if (cancelled) return;
         setMapsStatus('error');
-        setAddressError('Address search is temporarily unavailable. Please try again or call.');
+        setPlacesLibrary(null);
+        setSuggestions([]);
+        setSuggestionsOpen(false);
       });
 
     return () => {
       cancelled = true;
-      if (placeAutocomplete) {
-        placeAutocomplete.removeEventListener('input', inputListener);
-        placeAutocomplete.removeEventListener('gmp-select', selectListener);
-        placeAutocomplete.removeEventListener('gmp-placeselect', legacySelectListener);
-        placeAutocomplete.remove();
-      }
     };
   }, [googleMapsApiKey]);
+
+  useEffect(() => {
+    const handleDocumentMouseDown = (event) => {
+      if (!addressFieldWrapRef.current?.contains(event.target)) {
+        setSuggestionsOpen(false);
+        setActiveSuggestionIndex(-1);
+      }
+    };
+
+    document.addEventListener('mousedown', handleDocumentMouseDown);
+    document.addEventListener('touchstart', handleDocumentMouseDown);
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown);
+      document.removeEventListener('touchstart', handleDocumentMouseDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    const requestId = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestId;
+    const query = addressText.trim();
+
+    if (
+      mapsStatus !== 'ready' ||
+      !placesLibrary?.AutocompleteSuggestion ||
+      !query ||
+      query.length < 3 ||
+      (addressValid && verifiedAddress?.formattedAddress === addressText)
+    ) {
+      setSuggestions([]);
+      setSuggestionsOpen(false);
+      setActiveSuggestionIndex(-1);
+      setSuggestionsLoading(false);
+      return undefined;
+    }
+
+    setSuggestionsLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        if (!autocompleteSessionRef.current && placesLibrary.AutocompleteSessionToken) {
+          autocompleteSessionRef.current = new placesLibrary.AutocompleteSessionToken();
+        }
+
+        const response =
+          await placesLibrary.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: query,
+            includedRegionCodes: ['us'],
+            includedPrimaryTypes: ['street_address'],
+            sessionToken: autocompleteSessionRef.current,
+          });
+
+        if (requestSequenceRef.current !== requestId) return;
+
+        const nextSuggestions = (response?.suggestions || [])
+          .map((suggestion, index) => {
+            const prediction = suggestion.placePrediction;
+            const text = getPredictionText(prediction);
+
+            return prediction && text
+              ? {
+                  id: prediction.placeId || `address-suggestion-${requestId}-${index}`,
+                  prediction,
+                  text,
+                }
+              : null;
+          })
+          .filter(Boolean);
+
+        setSuggestions(nextSuggestions);
+        setSuggestionsOpen(nextSuggestions.length > 0);
+        setActiveSuggestionIndex(nextSuggestions.length > 0 ? 0 : -1);
+        setAddressError('');
+      } catch {
+        if (requestSequenceRef.current !== requestId) return;
+        setSuggestions([]);
+        setSuggestionsOpen(false);
+        setActiveSuggestionIndex(-1);
+        setAddressError(ADDRESS_UNAVAILABLE_MESSAGE);
+      } finally {
+        if (requestSequenceRef.current === requestId) {
+          setSuggestionsLoading(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [addressText, addressValid, mapsStatus, placesLibrary, verifiedAddress]);
 
   const phoneError =
     (touched.phone || startAttempted) && !phoneValid
@@ -735,17 +768,24 @@ export default function AddressForm() {
   const emailError =
     (touched.email || startAttempted) && !emailValid ? 'Please enter a valid email address.' : '';
 
+  const addressSearchUnavailable = addressError === ADDRESS_UNAVAILABLE_MESSAGE || mapsStatus === 'error';
   const displayedAddressError =
-    addressError ||
-    (startAttempted && !addressValid ? 'Please select a complete property address from the suggestions.' : '');
-  const addressSearchUnavailable = displayedAddressError.startsWith('Address search is temporarily unavailable');
-
-  useEffect(() => {
-    placeAutocompleteRef.current?.setAttribute(
-      'aria-invalid',
-      displayedAddressError ? 'true' : 'false',
-    );
-  }, [displayedAddressError]);
+    addressSearchUnavailable && (addressTouched || startAttempted || addressText.trim())
+      ? ADDRESS_UNAVAILABLE_MESSAGE
+      : addressError ||
+        ((addressTouched || startAttempted) && !addressValid ? ADDRESS_INCOMPLETE_MESSAGE : '');
+  const activeSuggestionId =
+    suggestionsOpen && activeSuggestionIndex >= 0
+      ? `address-suggestion-${activeSuggestionIndex}`
+      : undefined;
+  const addressDescribedBy = [
+    displayedAddressError ? 'address-error' : '',
+    mapsStatus === 'loading' ? 'address-status' : '',
+    addressSelecting ? 'address-verifying' : '',
+    'privacy-note',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const focusFirstInvalidField = () => {
     if (!addressValid) {
@@ -760,6 +800,97 @@ export default function AddressForm() {
 
     if (!emailValid) {
       emailRef.current?.focus();
+    }
+  };
+
+  const handleAddressChange = (event) => {
+    const nextValue = event.target.value;
+    setAddressText(nextValue);
+    setSuccessMessageVisible(false);
+    setAddressError('');
+    setAddressTouched(false);
+
+    if (verifiedAddress) {
+      setVerifiedAddress(null);
+      autocompleteSessionRef.current = null;
+    }
+  };
+
+  const handleAddressBlur = () => {
+    setAddressTouched(true);
+  };
+
+  const handleAddressFocus = () => {
+    if (suggestions.length > 0 && !addressValid) {
+      setSuggestionsOpen(true);
+    }
+  };
+
+  const selectSuggestion = async (suggestion) => {
+    if (!suggestion?.prediction) return;
+
+    requestSequenceRef.current += 1;
+    setAddressSelecting(true);
+    setSuggestionsOpen(false);
+    setActiveSuggestionIndex(-1);
+    setAddressError('');
+
+    try {
+      const place = suggestion.prediction.toPlace();
+      await place.fetchFields({
+        fields: ['id', 'formattedAddress', 'addressComponents', 'location'],
+      });
+
+      const normalizedPlace = normalizePlace(place);
+
+      if (!normalizedPlace.isValid) {
+        setVerifiedAddress(null);
+        setAddressTouched(true);
+        setAddressError(ADDRESS_INCOMPLETE_MESSAGE);
+        return;
+      }
+
+      setVerifiedAddress(normalizedPlace);
+      setAddressText(normalizedPlace.formattedAddress);
+      setAddressTouched(true);
+      setAddressError('');
+      setSuggestions([]);
+      autocompleteSessionRef.current = null;
+    } catch {
+      setVerifiedAddress(null);
+      setAddressTouched(true);
+      setAddressError(ADDRESS_UNAVAILABLE_MESSAGE);
+    } finally {
+      setAddressSelecting(false);
+    }
+  };
+
+  const handleAddressKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      setSuggestionsOpen(false);
+      setActiveSuggestionIndex(-1);
+      return;
+    }
+
+    if (!suggestionsOpen || suggestions.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveSuggestionIndex((current) => (current + 1) % suggestions.length);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveSuggestionIndex((current) =>
+        current <= 0 ? suggestions.length - 1 : current - 1,
+      );
+      return;
+    }
+
+    if (event.key === 'Enter' && activeSuggestionIndex >= 0) {
+      event.preventDefault();
+      selectSuggestion(suggestions[activeSuggestionIndex]);
     }
   };
 
@@ -797,9 +928,10 @@ export default function AddressForm() {
     setEmail('');
     setTouched({ phone: false, email: false });
     setStartAttempted(false);
-    if (placeAutocompleteRef.current) {
-      placeAutocompleteRef.current.value = '';
-    }
+    setSuggestions([]);
+    setSuggestionsOpen(false);
+    setActiveSuggestionIndex(-1);
+    autocompleteSessionRef.current = null;
     window.setTimeout(() => getOfferButtonRef.current?.focus(), 0);
   };
 
@@ -809,21 +941,78 @@ export default function AddressForm() {
         <div className="lead-intake-grid">
           <div className="lead-field lead-address-field">
             <label htmlFor="property-address">Property Address</label>
-            <div
-              className={`input-shell places-shell ${displayedAddressError ? 'input-shell-error' : ''}`}
-            >
-              <LocationIcon />
-              <div className="address-autocomplete-wrap">
-                <div
-                  ref={autocompleteContainerRef}
-                  className="address-autocomplete-host"
-                  aria-busy={mapsStatus === 'loading'}
+            <div ref={addressFieldWrapRef} className="address-field-wrap">
+              <div
+                className={`input-shell places-shell ${displayedAddressError ? 'input-shell-error' : ''}`}
+              >
+                <LocationIcon />
+                <input
+                  id="property-address"
+                  ref={addressInputRef}
+                  className="address-input"
+                  name="property_address"
+                  type="text"
+                  autoComplete="street-address"
+                  placeholder="Enter your property address"
+                  value={addressText}
+                  onBlur={handleAddressBlur}
+                  onChange={handleAddressChange}
+                  onFocus={handleAddressFocus}
+                  onKeyDown={handleAddressKeyDown}
+                  aria-autocomplete="list"
+                  aria-controls={ADDRESS_SUGGESTIONS_ID}
+                  aria-expanded={suggestionsOpen ? 'true' : 'false'}
+                  aria-activedescendant={activeSuggestionId}
+                  aria-invalid={Boolean(displayedAddressError)}
+                  aria-describedby={addressDescribedBy}
                 />
-                {mapsStatus === 'loading' && (
-                  <span className="address-loading-text">Loading address search...</span>
-                )}
               </div>
+
+              {suggestionsOpen && suggestions.length > 0 && (
+                <div
+                  id={ADDRESS_SUGGESTIONS_ID}
+                  className="address-suggestions"
+                  role="listbox"
+                  aria-label="Property address suggestions"
+                >
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={`${suggestion.id}-${suggestion.text}`}
+                      id={`address-suggestion-${index}`}
+                      type="button"
+                      className={`address-suggestion ${
+                        activeSuggestionIndex === index ? 'address-suggestion-active' : ''
+                      }`}
+                      role="option"
+                      aria-selected={activeSuggestionIndex === index ? 'true' : 'false'}
+                      tabIndex="-1"
+                      onMouseEnter={() => setActiveSuggestionIndex(index)}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        selectSuggestion(suggestion);
+                      }}
+                    >
+                      {suggestion.text}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+            {mapsStatus === 'loading' && (
+              <p className="field-note address-status" id="address-status" role="status">
+                Loading address search...
+              </p>
+            )}
+            {suggestionsLoading && (
+              <p className="field-note address-status" role="status">
+                Searching addresses...
+              </p>
+            )}
+            {addressSelecting && (
+              <p className="field-note address-status" id="address-verifying" role="status">
+                Verifying address...
+              </p>
+            )}
             {displayedAddressError && (
               <p className="feedback-error" id="address-error">
                 {addressSearchUnavailable ? (

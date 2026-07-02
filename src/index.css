@@ -112,7 +112,7 @@ ul {
   margin-bottom: 14px;
 }
 
-/* Primary (orange) button — orange is reserved for CTAs and highlights */
+/* Primary orange button. Orange is reserved for CTAs and highlights. */
 .btn-primary {
   display: inline-flex;
   align-items: center;

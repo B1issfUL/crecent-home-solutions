@@ -8,9 +8,9 @@ export default function Contact() {
           <span className="eyebrow">Contact</span>
           <h2 className="section-title">Ready when you are</h2>
           <p className="contact-statement">
-            Have questions before sharing your address? Reach out and a member
-            of our team will walk you through our cash purchase process — no
-            pressure, no obligation.
+            Have questions before sharing your address? Reach out, and a member
+            of our team will walk you through our cash purchase process. There
+            is no pressure and no obligation.
           </p>
 
           <div className="contact-details">

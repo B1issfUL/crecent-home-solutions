@@ -1,4 +1,4 @@
-# Crescent Home Solutions — Landing Page
+# Crescent Home Solutions Landing Page
 
 A responsive, dark-themed landing page for a real-estate home-buying company.
 Built with React + Vite, plain CSS, Google Places address verification, and Formspree lead delivery.

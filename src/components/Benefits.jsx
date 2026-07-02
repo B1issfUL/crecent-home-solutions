@@ -14,7 +14,7 @@ const BENEFITS = [
   {
     title: 'No Agent Commissions',
     description:
-      'Work with us directly and keep more of your money — there are no listing fees.',
+      'Work with us directly and keep more of your money. There are no listing fees.',
   },
   {
     title: 'Simple Process',

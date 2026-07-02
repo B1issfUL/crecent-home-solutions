@@ -16,8 +16,8 @@ export default function Hero() {
             On your timeline.
           </h1>
           <p className="hero-paragraph">
-            We buy homes for cash — no repairs, cleaning, commissions, or long
-            waiting periods. Enter your address below and our team will review
+            We buy homes for cash with no repairs, cleaning, commissions, or long
+            waiting periods. Enter your address below, and our team will review
             the information for a cash offer.
           </p>
 
