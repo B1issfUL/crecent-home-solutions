@@ -120,9 +120,14 @@
   opacity: 0.72;
 }
 
-.address-autocomplete-host {
+.address-autocomplete-wrap {
   flex: 1;
   min-width: 0;
+}
+
+.address-autocomplete-host {
+  min-width: 0;
+  width: 100%;
 }
 
 .address-autocomplete-host gmp-place-autocomplete,

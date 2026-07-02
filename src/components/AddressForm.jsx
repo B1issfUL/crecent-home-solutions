@@ -813,11 +813,12 @@ export default function AddressForm() {
               className={`input-shell places-shell ${displayedAddressError ? 'input-shell-error' : ''}`}
             >
               <LocationIcon />
-              <div
-                ref={autocompleteContainerRef}
-                className="address-autocomplete-host"
-                aria-busy={mapsStatus === 'loading'}
-              >
+              <div className="address-autocomplete-wrap">
+                <div
+                  ref={autocompleteContainerRef}
+                  className="address-autocomplete-host"
+                  aria-busy={mapsStatus === 'loading'}
+                />
                 {mapsStatus === 'loading' && (
                   <span className="address-loading-text">Loading address search...</span>
                 )}
