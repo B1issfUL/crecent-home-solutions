@@ -1,7 +1,7 @@
 # Crescent Home Solutions — Landing Page
 
 A responsive, dark-themed landing page for a real-estate home-buying company.
-Built with React + Vite and plain CSS. No backend, no external APIs.
+Built with React + Vite, plain CSS, Google Places address verification, and Formspree lead delivery.
 
 ## Run it
 
@@ -44,12 +44,20 @@ crescent-home-solutions/
 
 ## Form behavior
 
-- Submission never refreshes the page and the address is never sent or stored.
-- Input is trimmed; fewer than 5 characters shows:
-  "Please enter a valid property address."
-- A valid submission clears the input and shows:
-  "Thank you. We received your address and will reach out soon."
+- The first step requires a Google Places verified property address, phone number, and email address.
+- The "Get My Offer" button stays disabled until all three first-step fields are valid.
+- The final Formspree submission includes the verified address, Google Place ID, phone, email, name, preferred contact method, property details, and consent.
+- The success message appears only after Formspree confirms a successful submission.
 - Feedback is announced to screen readers via an `aria-live` region.
+
+## Environment
+
+Copy `.env.example` to `.env.local` for local development and set:
+
+```bash
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_browser_key
+VITE_FORMSPREE_FORM_ID=your_formspree_form_id
+```
 
 ## Accessibility
 
