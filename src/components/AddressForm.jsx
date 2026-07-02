@@ -7,6 +7,8 @@ const PHONE_HREF = 'tel:+17372050102';
 const FORM_SUBJECT = 'New Cash Home Seller Lead';
 const SUBMISSION_COOLDOWN_MS = 60_000;
 const MIN_REVIEW_TIME_MS = 2_000;
+const PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
+const PLACES_DETAILS_BASE_URL = 'https://places.googleapis.com/v1/places';
 
 const FORM_DEFAULTS = {
   name: '',
@@ -18,10 +20,8 @@ const FORM_DEFAULTS = {
   _gotcha: '',
 };
 
-let googleMapsPromise;
-
 function getPredictionText(placePrediction) {
-  return placePrediction?.text?.toString?.() || '';
+  return placePrediction?.text?.text || placePrediction?.text?.toString?.() || '';
 }
 
 function LocationIcon() {
@@ -46,57 +46,57 @@ function LocationIcon() {
   );
 }
 
-function loadGoogleMaps(apiKey) {
-  if (window.google?.maps?.importLibrary) {
-    return Promise.resolve(window.google);
+async function fetchPlaceSuggestions(input, apiKey) {
+  const response = await fetch(PLACES_AUTOCOMPLETE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask':
+        'suggestions.placePrediction.place,suggestions.placePrediction.placeId,suggestions.placePrediction.text',
+    },
+    body: JSON.stringify({
+      input,
+      includedRegionCodes: ['us'],
+      languageCode: 'en-US',
+      regionCode: 'US',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Places autocomplete failed.');
   }
 
-  if (!googleMapsPromise) {
-    googleMapsPromise = new Promise((resolve, reject) => {
-      const existingScript = document.querySelector('script[data-chs-google-maps]');
+  const data = await response.json();
 
-      if (existingScript) {
-        existingScript.addEventListener('load', () => resolve(window.google), { once: true });
-        existingScript.addEventListener('error', reject, { once: true });
-        return;
-      }
+  return Array.from(data.suggestions || [])
+    .map((suggestion) => suggestion.placePrediction)
+    .filter(Boolean)
+    .map((placePrediction, index) => ({
+      id: `address-suggestion-${index}`,
+      label: getPredictionText(placePrediction),
+      placeId: placePrediction.placeId || placePrediction.place?.replace(/^places\//, '') || '',
+      placeResourceName: placePrediction.place || '',
+    }))
+    .filter((suggestion) => suggestion.label && suggestion.placeId);
+}
 
-      const callbackName = '__chsGoogleMapsLoaded';
-      const script = document.createElement('script');
-      const params = new URLSearchParams({
-        key: apiKey,
-        v: 'weekly',
-        loading: 'async',
-        callback: callbackName,
-      });
-      const timeout = window.setTimeout(() => {
-        reject(new Error('Google Maps did not finish loading.'));
-      }, 12000);
+async function fetchPlaceDetails(suggestion, apiKey) {
+  const placeId = suggestion.placeId || suggestion.placeResourceName?.replace(/^places\//, '');
+  const url = `${PLACES_DETAILS_BASE_URL}/${encodeURIComponent(placeId)}`;
 
-      window[callbackName] = () => {
-        window.clearTimeout(timeout);
-        delete window[callbackName];
-        resolve(window.google);
-      };
+  const response = await fetch(url, {
+    headers: {
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': 'id,formattedAddress,addressComponents,location',
+    },
+  });
 
-      script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
-      script.async = true;
-      script.defer = true;
-      script.dataset.chsGoogleMaps = 'true';
-      script.addEventListener(
-        'error',
-        () => {
-          window.clearTimeout(timeout);
-          delete window[callbackName];
-          reject(new Error('Google Maps could not load.'));
-        },
-        { once: true },
-      );
-      document.head.appendChild(script);
-    });
+  if (!response.ok) {
+    throw new Error('Place details failed.');
   }
 
-  return googleMapsPromise;
+  return response.json();
 }
 
 function getAddressComponent(components, type, key = 'longText') {
@@ -113,9 +113,13 @@ function normalizePlace(place) {
     getAddressComponent(addressComponents, 'sublocality') ||
     getAddressComponent(addressComponents, 'administrative_area_level_3');
   const latitude =
-    typeof place.location?.lat === 'function' ? place.location.lat() : place.location?.lat;
+    typeof place.location?.lat === 'function'
+      ? place.location.lat()
+      : place.location?.lat || place.location?.latitude;
   const longitude =
-    typeof place.location?.lng === 'function' ? place.location.lng() : place.location?.lng;
+    typeof place.location?.lng === 'function'
+      ? place.location.lng()
+      : place.location?.lng || place.location?.longitude;
 
   const normalized = {
     formattedAddress: place.formattedAddress || place.formatted_address || '',
@@ -594,8 +598,10 @@ function LeadModal(props) {
 
 export default function AddressForm() {
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const googlePlacesApiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+  const addressSearchApiKey = googlePlacesApiKey || googleMapsApiKey;
   const formspreeFormId = import.meta.env.VITE_FORMSPREE_FORM_ID;
-  const [mapsStatus, setMapsStatus] = useState(googleMapsApiKey ? 'loading' : 'error');
+  const [mapsStatus, setMapsStatus] = useState(addressSearchApiKey ? 'ready' : 'error');
   const [addressText, setAddressText] = useState('');
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -613,8 +619,6 @@ export default function AddressForm() {
   const phoneRef = useRef(null);
   const emailRef = useRef(null);
   const getOfferButtonRef = useRef(null);
-  const placesApiRef = useRef(null);
-  const sessionTokenRef = useRef(null);
   const suggestionRequestRef = useRef(0);
 
   const phoneValid = useMemo(() => isValidPhone(phone), [phone]);
@@ -623,42 +627,22 @@ export default function AddressForm() {
   const canContinue = mapsStatus === 'ready' && addressValid && phoneValid && emailValid;
 
   useEffect(() => {
-    if (!googleMapsApiKey) {
+    if (!addressSearchApiKey) {
       setMapsStatus('error');
       setAddressError('Address search is temporarily unavailable. Please try again or call.');
       return;
     }
 
-    let cancelled = false;
-    loadGoogleMaps(googleMapsApiKey)
-      .then(async () => {
-        const placesApi = await window.google.maps.importLibrary('places');
-
-        if (cancelled) return;
-
-        placesApiRef.current = placesApi;
-        sessionTokenRef.current = new placesApi.AutocompleteSessionToken();
-
-        setMapsStatus('ready');
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setMapsStatus('error');
-        setAddressError('Address search is temporarily unavailable. Please try again or call.');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [googleMapsApiKey]);
+    setMapsStatus('ready');
+    setAddressError('');
+  }, [addressSearchApiKey]);
 
   useEffect(() => {
     const query = addressText.trim();
-    const placesApi = placesApiRef.current;
 
     if (
       mapsStatus !== 'ready' ||
-      !placesApi?.AutocompleteSuggestion ||
+      !addressSearchApiKey ||
       verifiedAddress?.formattedAddress === addressText
     ) {
       setAddressSuggestions([]);
@@ -678,29 +662,9 @@ export default function AddressForm() {
     const requestId = ++suggestionRequestRef.current;
     const timer = window.setTimeout(async () => {
       try {
-        if (!sessionTokenRef.current) {
-          sessionTokenRef.current = new placesApi.AutocompleteSessionToken();
-        }
-
-        const { suggestions } =
-          await placesApi.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-            input: query,
-            language: 'en-US',
-            region: 'us',
-            sessionToken: sessionTokenRef.current,
-          });
+        const nextSuggestions = await fetchPlaceSuggestions(query, addressSearchApiKey);
 
         if (cancelled || requestId !== suggestionRequestRef.current) return;
-
-        const nextSuggestions = suggestions
-          .map((suggestion) => suggestion.placePrediction)
-          .filter(Boolean)
-          .map((placePrediction, index) => ({
-            id: `address-suggestion-${index}`,
-            label: getPredictionText(placePrediction),
-            placePrediction,
-          }))
-          .filter((suggestion) => suggestion.label);
 
         setAddressSuggestions(nextSuggestions);
         setSuggestionsOpen(nextSuggestions.length > 0);
@@ -718,7 +682,7 @@ export default function AddressForm() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [addressText, mapsStatus, verifiedAddress?.formattedAddress]);
+  }, [addressSearchApiKey, addressText, mapsStatus, verifiedAddress?.formattedAddress]);
 
   const phoneError =
     (touched.phone || startAttempted) && !phoneValid
@@ -749,17 +713,12 @@ export default function AddressForm() {
   };
 
   const selectAddressSuggestion = async (suggestion) => {
-    if (!suggestion?.placePrediction || !placesApiRef.current) return;
+    if (!suggestion?.placeId || !addressSearchApiKey) return;
 
     setAddressError('');
 
     try {
-      const place = suggestion.placePrediction.toPlace();
-
-      await place.fetchFields({
-        fields: ['id', 'formattedAddress', 'addressComponents', 'location'],
-      });
-
+      const place = await fetchPlaceDetails(suggestion, addressSearchApiKey);
       const normalizedPlace = normalizePlace(place);
 
       setVerifiedAddress(normalizedPlace.isValid ? normalizedPlace : null);
@@ -773,7 +732,6 @@ export default function AddressForm() {
           ? ''
           : 'Please select a complete property address from the suggestions.',
       );
-      sessionTokenRef.current = new placesApiRef.current.AutocompleteSessionToken();
     } catch {
       setVerifiedAddress(null);
       setAddressError('Please select a complete property address from the suggestions.');
