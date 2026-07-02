@@ -31,6 +31,10 @@
   font-weight: 600;
 }
 
+.lead-address-field {
+  position: relative;
+}
+
 .lead-field input,
 .lead-field select,
 .lead-field textarea {
@@ -114,6 +118,61 @@
 .address-input:disabled {
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+.address-suggestions-panel {
+  position: absolute;
+  top: calc(100% - 1px);
+  left: 0;
+  right: 0;
+  z-index: 80;
+  overflow: hidden;
+  background-color: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.address-suggestions {
+  list-style: none;
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.address-suggestion-button {
+  width: 100%;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 10px;
+  text-align: left;
+}
+
+.address-suggestion-button:hover,
+.address-suggestions li[aria-selected='true'] .address-suggestion-button {
+  background-color: rgba(124, 58, 237, 0.18);
+}
+
+.address-suggestion-button:focus {
+  outline: 2px solid var(--orange);
+  outline-offset: -2px;
+}
+
+.address-suggestions-attribution {
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 7px 10px 8px;
+  text-align: right;
 }
 
 .form-submit {
