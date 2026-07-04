@@ -7,7 +7,7 @@ export default function Footer() {
     <footer className="footer">
       <div className="container">
         <div className="footer-top">
-          <span className="footer-brand">Crescent Home Solutions</span>
+          <span className="footer-brand">Cornerstone Home Solutions</span>
           <nav aria-label="Legal">
             <ul className="footer-links">
               <li>
@@ -30,7 +30,7 @@ export default function Footer() {
         </p>
 
         <p className="footer-copyright">
-          &copy; {year} Crescent Home Solutions. All rights reserved.
+          &copy; {year} Cornerstone Home Solutions. All rights reserved.
         </p>
       </div>
     </footer>

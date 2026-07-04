@@ -1,7 +1,6 @@
 .benefits {
   border-top: 1px solid var(--border);
-  background:
-    radial-gradient(ellipse 50% 60% at 90% 50%, rgba(124, 58, 237, 0.08), transparent 70%);
+  background-color: #ffffff;
 }
 
 .benefits-grid {
@@ -28,7 +27,7 @@
   height: 40px;
   flex-shrink: 0;
   border-radius: var(--radius-sm);
-  background-color: rgba(124, 58, 237, 0.16);
+  background-color: #fff7ed;
   border: 1px solid var(--border-strong);
 }
 

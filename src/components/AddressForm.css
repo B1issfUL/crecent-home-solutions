@@ -43,7 +43,7 @@
   width: 100%;
   min-height: 56px;
   min-width: 0;
-  background-color: rgba(17, 11, 31, 0.72);
+  background-color: #ffffff;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -81,7 +81,7 @@
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background-color: rgba(17, 11, 31, 0.72);
+  background-color: #ffffff;
   padding: 0 12px;
 }
 
@@ -96,7 +96,7 @@
 }
 
 .input-icon {
-  color: var(--purple-light);
+  color: var(--orange);
   flex-shrink: 0;
 }
 
@@ -142,10 +142,10 @@
   right: 0;
   z-index: 10000;
   overflow: hidden;
-  background-color: #171026;
+  background-color: #ffffff;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 18px 44px rgba(17, 17, 17, 0.14);
   color: var(--text);
   font-family: var(--font-sans);
 }
@@ -156,7 +156,7 @@
   gap: 2px;
   min-height: 52px;
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border);
   background-color: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -171,7 +171,7 @@
 
 .address-suggestion-item:hover,
 .address-suggestion-item.is-active {
-  background-color: rgba(124, 58, 237, 0.26);
+  background-color: #fff7ed;
 }
 
 .address-suggestion-main {
@@ -208,16 +208,16 @@
 }
 
 .feedback-error {
-  color: #fca5a5;
+  color: #b91c1c;
   font-size: 0.86rem;
   font-weight: 600;
 }
 
 .feedback-success {
-  color: var(--purple-light);
+  color: #166534;
   font-size: 0.95rem;
   font-weight: 600;
-  background-color: rgba(124, 58, 237, 0.12);
+  background-color: #f0fdf4;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
@@ -253,7 +253,7 @@
   z-index: 100;
   display: grid;
   place-items: center;
-  background-color: rgba(6, 3, 12, 0.78);
+  background-color: rgba(17, 17, 17, 0.62);
   padding: 20px;
 }
 
@@ -264,7 +264,7 @@
   background-color: var(--panel);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.52);
+  box-shadow: 0 24px 70px rgba(17, 17, 17, 0.24);
   padding: 22px;
 }
 
@@ -278,7 +278,7 @@
 
 .lead-modal-kicker {
   display: inline-block;
-  color: var(--purple-light);
+  color: var(--orange);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -300,7 +300,7 @@
   flex-shrink: 0;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background-color: rgba(17, 11, 31, 0.72);
+  background-color: #ffffff;
   color: var(--text);
   cursor: pointer;
   font-size: 1.1rem;

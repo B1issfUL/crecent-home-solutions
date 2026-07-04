@@ -1,7 +1,8 @@
 .footer {
   border-top: 1px solid var(--border);
   padding: 44px 0 36px;
-  background-color: rgba(27, 18, 48, 0.5);
+  background-color: #111111;
+  color: #ffffff;
 }
 
 .footer-top {
@@ -24,23 +25,23 @@
 }
 
 .footer-link {
-  color: var(--text-muted);
+  color: #d1d5db;
   font-size: 0.9rem;
   transition: color 0.15s ease;
 }
 
 .footer-link:hover {
-  color: var(--text);
+  color: #ffffff;
 }
 
 .footer-disclaimer {
-  color: var(--text-muted);
+  color: #d1d5db;
   font-size: 0.82rem;
   max-width: 640px;
   margin-bottom: 14px;
 }
 
 .footer-copyright {
-  color: var(--text-muted);
+  color: #d1d5db;
   font-size: 0.82rem;
 }

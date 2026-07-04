@@ -2,7 +2,7 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background-color: rgba(17, 11, 31, 0.92);
+  background-color: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
 }
@@ -48,7 +48,7 @@
 }
 
 .nav-link:hover {
-  color: var(--text);
+  color: var(--orange);
 }
 
 .header-cta {
@@ -62,7 +62,7 @@
   position: relative;
   width: 44px;
   height: 44px;
-  background: none;
+  background: #ffffff;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -156,7 +156,7 @@
   }
 
   .nav-link:hover {
-    background-color: rgba(124, 58, 237, 0.12);
+    background-color: rgba(249, 115, 22, 0.1);
   }
 
   .header-cta {

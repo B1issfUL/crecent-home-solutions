@@ -8,7 +8,7 @@ const NAV_LINKS = [
   { label: 'Contact', href: '#contact' },
 ];
 
-/* Simple original crescent mark used as the placeholder logo */
+/* Simple cornerstone mark used as the placeholder logo */
 function LogoIcon() {
   return (
     <svg
@@ -19,12 +19,12 @@ function LogoIcon() {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <circle cx="17" cy="17" r="15.5" stroke="var(--purple-light)" strokeWidth="1.5" />
+      <rect x="4" y="4" width="26" height="26" rx="7" fill="var(--text)" />
       <path
-        d="M22 8.5a10.5 10.5 0 1 0 3 15 8.5 8.5 0 0 1-3-15Z"
-        fill="var(--purple)"
+        d="M10 18.5 17 11l7 7.5v7H10v-7Z"
+        fill="var(--panel)"
       />
-      <circle cx="23.5" cy="11" r="1.8" fill="var(--orange)" />
+      <path d="M10 25h14" stroke="var(--orange)" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -39,7 +39,7 @@ export default function Header() {
       <div className="container header-inner">
         <a href="#top" className="brand" onClick={closeMenu}>
           <LogoIcon />
-          <span className="brand-name">Crescent Home Solutions</span>
+          <span className="brand-name">Cornerstone Home Solutions</span>
         </a>
 
         <button

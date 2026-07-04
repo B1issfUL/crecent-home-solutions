@@ -35,7 +35,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--purple-light);
+  color: var(--orange);
 }
 
 .contact-value {
@@ -45,7 +45,7 @@
 }
 
 .contact-value:hover {
-  color: var(--purple-light);
+  color: var(--orange);
 }
 
 @media (max-width: 640px) {

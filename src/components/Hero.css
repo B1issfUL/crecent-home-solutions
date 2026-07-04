@@ -1,8 +1,6 @@
 .hero {
   padding: 96px 0 104px;
-  background:
-    radial-gradient(ellipse 60% 50% at 80% 10%, rgba(124, 58, 237, 0.14), transparent 70%),
-    radial-gradient(ellipse 50% 40% at 10% 90%, rgba(124, 58, 237, 0.08), transparent 70%);
+  background-color: var(--bg);
 }
 
 .hero-grid {

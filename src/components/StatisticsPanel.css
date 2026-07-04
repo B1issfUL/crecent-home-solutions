@@ -19,7 +19,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--purple-light);
+  color: var(--text);
 }
 
 .stats-status {
@@ -50,7 +50,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background-color: rgba(17, 11, 31, 0.6);
+  background-color: #f9fafb;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 18px;
@@ -59,7 +59,7 @@
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--purple-light);
+  color: var(--orange);
   letter-spacing: -0.01em;
 }
 
@@ -79,7 +79,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--purple-light);
+  color: var(--text);
   margin-bottom: 12px;
 }
 
@@ -93,7 +93,7 @@
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--text);
-  background-color: rgba(124, 58, 237, 0.14);
+  background-color: #fff7ed;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   padding: 7px 15px;

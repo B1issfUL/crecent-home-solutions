@@ -326,7 +326,7 @@ function LeadModal(props) {
 
     if (!fields.contact_consent) {
       nextErrors.contact_consent =
-        'Please agree that Crescent Home Solutions may contact you about this property.';
+        'Please agree that Cornerstone Home Solutions may contact you about this property.';
     }
 
     return nextErrors;
@@ -555,7 +555,7 @@ function LeadModal(props) {
               aria-describedby={errors.contact_consent ? 'contact-consent-error' : undefined}
             />
             <span>
-              I agree that Crescent Home Solutions may contact me about this property using the
+              I agree that Cornerstone Home Solutions may contact me about this property using the
               information I provided.
             </span>
           </label>
