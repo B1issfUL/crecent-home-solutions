@@ -131,50 +131,38 @@
   overflow: visible;
 }
 
-.address-suggestions {
-  position: absolute;
-  z-index: 80;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  display: grid;
+.address-status {
+  margin-top: -2px;
+}
+
+.pac-container {
+  z-index: 10000;
   overflow: hidden;
   background-color: #171026;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
-}
-
-.address-suggestion {
-  width: 100%;
-  min-height: 48px;
-  border: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: transparent;
   color: var(--text);
+  font-family: var(--font-sans);
+  margin-top: 8px;
+}
+
+.pac-item {
+  min-height: 48px;
+  border-top-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
   cursor: pointer;
-  font: inherit;
-  font-size: 0.92rem;
-  font-weight: 600;
-  line-height: 1.35;
-  padding: 12px 14px;
-  text-align: left;
+  padding: 10px 14px;
 }
 
-.address-suggestion:last-child {
-  border-bottom: 0;
-}
-
-.address-suggestion:hover,
-.address-suggestion-active,
-.address-suggestion:focus-visible {
+.pac-item:hover,
+.pac-item-selected {
   background-color: rgba(124, 58, 237, 0.26);
-  color: #fff;
-  outline: none;
 }
 
-.address-status {
-  margin-top: -2px;
+.pac-item-query,
+.pac-matched {
+  color: var(--text);
 }
 
 .form-submit {

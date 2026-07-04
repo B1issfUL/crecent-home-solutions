@@ -11,7 +11,6 @@ const ADDRESS_INCOMPLETE_MESSAGE =
   'Please select a complete property address from the suggestions.';
 const ADDRESS_UNAVAILABLE_MESSAGE =
   'Address search is temporarily unavailable. Please try again or call (+1) 737 205 0102.';
-const ADDRESS_SUGGESTIONS_ID = 'property-address-suggestions';
 
 const FORM_DEFAULTS = {
   name: '',
@@ -115,14 +114,15 @@ function normalizePlace(place) {
     getAddressComponent(addressComponents, 'sublocality') ||
     getAddressComponent(addressComponents, 'administrative_area_level_2') ||
     getAddressComponent(addressComponents, 'administrative_area_level_3');
+  const placeLocation = place.location || place.geometry?.location;
   const latitude =
-    typeof place.location?.lat === 'function'
-      ? place.location.lat()
-      : place.location?.lat || place.location?.latitude;
+    typeof placeLocation?.lat === 'function'
+      ? placeLocation.lat()
+      : placeLocation?.lat || placeLocation?.latitude;
   const longitude =
-    typeof place.location?.lng === 'function'
-      ? place.location.lng()
-      : place.location?.lng || place.location?.longitude;
+    typeof placeLocation?.lng === 'function'
+      ? placeLocation.lng()
+      : placeLocation?.lng || placeLocation?.longitude;
 
   const normalized = {
     formattedAddress: place.formattedAddress || place.formatted_address || '',
@@ -148,15 +148,6 @@ function normalizePlace(place) {
     Boolean(normalized.zip);
 
   return normalized;
-}
-
-function getPredictionText(prediction) {
-  return (
-    prediction?.text?.toString?.() ||
-    prediction?.structuredFormat?.mainText?.toString?.() ||
-    prediction?.description ||
-    ''
-  );
 }
 
 function getDigits(value) {
@@ -614,15 +605,10 @@ export default function AddressForm() {
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const formspreeFormId = import.meta.env.VITE_FORMSPREE_FORM_ID;
   const [mapsStatus, setMapsStatus] = useState(googleMapsApiKey ? 'loading' : 'error');
-  const [placesLibrary, setPlacesLibrary] = useState(null);
   const [addressText, setAddressText] = useState('');
   const [verifiedAddress, setVerifiedAddress] = useState(null);
   const [addressTouched, setAddressTouched] = useState(false);
   const [addressError, setAddressError] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [addressSelecting, setAddressSelecting] = useState(false);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -631,9 +617,7 @@ export default function AddressForm() {
   const [modalOpen, setModalOpen] = useState(false);
   const [successMessageVisible, setSuccessMessageVisible] = useState(false);
   const addressInputRef = useRef(null);
-  const addressFieldWrapRef = useRef(null);
-  const autocompleteSessionRef = useRef(null);
-  const requestSequenceRef = useRef(0);
+  const autocompleteRef = useRef(null);
   const phoneRef = useRef(null);
   const emailRef = useRef(null);
   const getOfferButtonRef = useRef(null);
@@ -650,135 +634,60 @@ export default function AddressForm() {
     }
 
     let cancelled = false;
+    let placeChangedListener;
 
     loadGoogleMaps(googleMapsApiKey)
       .then(async () => {
-        const places = await window.google.maps.importLibrary('places');
-        if (cancelled) return;
-        setPlacesLibrary(places);
+        await window.google.maps.importLibrary('places');
+        if (cancelled || !addressInputRef.current) return;
+
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            componentRestrictions: { country: 'us' },
+            fields: ['place_id', 'formatted_address', 'address_components', 'geometry'],
+            types: ['address'],
+          },
+        );
+
+        autocompleteRef.current = autocomplete;
+        placeChangedListener = autocomplete.addListener('place_changed', () => {
+          setAddressSelecting(true);
+          setAddressError('');
+
+          const place = autocomplete.getPlace();
+          const normalizedPlace = normalizePlace(place || {});
+
+          if (!normalizedPlace.isValid) {
+            setVerifiedAddress(null);
+            setAddressTouched(true);
+            setAddressError(ADDRESS_INCOMPLETE_MESSAGE);
+            setAddressSelecting(false);
+            return;
+          }
+
+          setVerifiedAddress(normalizedPlace);
+          setAddressText(normalizedPlace.formattedAddress);
+          setAddressTouched(true);
+          setSuccessMessageVisible(false);
+          setAddressSelecting(false);
+        });
+
         setMapsStatus('ready');
       })
       .catch(() => {
         if (cancelled) return;
         setMapsStatus('error');
-        setPlacesLibrary(null);
-        setSuggestions([]);
-        setSuggestionsOpen(false);
       });
 
     return () => {
       cancelled = true;
+      if (placeChangedListener && window.google?.maps?.event) {
+        window.google.maps.event.removeListener(placeChangedListener);
+      }
+      autocompleteRef.current = null;
     };
   }, [googleMapsApiKey]);
-
-  useEffect(() => {
-    const handleDocumentMouseDown = (event) => {
-      if (!addressFieldWrapRef.current?.contains(event.target)) {
-        setSuggestionsOpen(false);
-        setActiveSuggestionIndex(-1);
-      }
-    };
-
-    document.addEventListener('mousedown', handleDocumentMouseDown);
-    document.addEventListener('touchstart', handleDocumentMouseDown);
-    return () => {
-      document.removeEventListener('mousedown', handleDocumentMouseDown);
-      document.removeEventListener('touchstart', handleDocumentMouseDown);
-    };
-  }, []);
-
-  useEffect(() => {
-    const requestId = requestSequenceRef.current + 1;
-    requestSequenceRef.current = requestId;
-    const query = addressText.trim();
-
-    if (
-      mapsStatus !== 'ready' ||
-      !placesLibrary?.AutocompleteSuggestion ||
-      !query ||
-      query.length < 3 ||
-      (addressValid && verifiedAddress?.formattedAddress === addressText)
-    ) {
-      setSuggestions([]);
-      setSuggestionsOpen(false);
-      setActiveSuggestionIndex(-1);
-      setSuggestionsLoading(false);
-      return undefined;
-    }
-
-    setSuggestionsLoading(true);
-
-    const timer = window.setTimeout(async () => {
-      try {
-        if (!autocompleteSessionRef.current && placesLibrary.AutocompleteSessionToken) {
-          autocompleteSessionRef.current = new placesLibrary.AutocompleteSessionToken();
-        }
-
-        const suggestionRequest = {
-          input: query,
-          inputOffset: query.length,
-          includedRegionCodes: ['US'],
-          includedPrimaryTypes: ['street_address'],
-          language: 'en-US',
-          region: 'us',
-          sessionToken: autocompleteSessionRef.current,
-        };
-
-        let response;
-
-        try {
-          response =
-            await placesLibrary.AutocompleteSuggestion.fetchAutocompleteSuggestions(
-              suggestionRequest,
-            );
-        } catch {
-          const fallbackRequest = { ...suggestionRequest };
-          delete fallbackRequest.includedPrimaryTypes;
-
-          response =
-            await placesLibrary.AutocompleteSuggestion.fetchAutocompleteSuggestions(
-              fallbackRequest,
-            );
-        }
-
-        if (requestSequenceRef.current !== requestId) return;
-
-        const nextSuggestions = (response?.suggestions || [])
-          .map((suggestion, index) => {
-            const prediction = suggestion.placePrediction;
-            const text = getPredictionText(prediction);
-
-            return prediction && text
-              ? {
-                  id: prediction.placeId || `address-suggestion-${requestId}-${index}`,
-                  prediction,
-                  text,
-                }
-              : null;
-          })
-          .filter(Boolean);
-
-        setSuggestions(nextSuggestions);
-        setSuggestionsOpen(nextSuggestions.length > 0);
-        setActiveSuggestionIndex(nextSuggestions.length > 0 ? 0 : -1);
-        setAddressError('');
-      } catch {
-        if (requestSequenceRef.current !== requestId) return;
-        setSuggestions([]);
-        setSuggestionsOpen(false);
-        setActiveSuggestionIndex(-1);
-        setAddressError(ADDRESS_UNAVAILABLE_MESSAGE);
-      } finally {
-        if (requestSequenceRef.current === requestId) {
-          setSuggestionsLoading(false);
-        }
-      }
-    }, 300);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [addressText, addressValid, mapsStatus, placesLibrary, verifiedAddress]);
 
   const phoneError =
     (touched.phone || startAttempted) && !phoneValid
@@ -793,10 +702,6 @@ export default function AddressForm() {
       ? ADDRESS_UNAVAILABLE_MESSAGE
       : addressError ||
         ((addressTouched || startAttempted) && !addressValid ? ADDRESS_INCOMPLETE_MESSAGE : '');
-  const activeSuggestionId =
-    suggestionsOpen && activeSuggestionIndex >= 0
-      ? `address-suggestion-${activeSuggestionIndex}`
-      : undefined;
   const addressDescribedBy = [
     displayedAddressError ? 'address-error' : '',
     mapsStatus === 'loading' ? 'address-status' : '',
@@ -831,86 +736,11 @@ export default function AddressForm() {
 
     if (verifiedAddress) {
       setVerifiedAddress(null);
-      autocompleteSessionRef.current = null;
     }
   };
 
   const handleAddressBlur = () => {
     setAddressTouched(true);
-  };
-
-  const handleAddressFocus = () => {
-    if (suggestions.length > 0 && !addressValid) {
-      setSuggestionsOpen(true);
-    }
-  };
-
-  const selectSuggestion = async (suggestion) => {
-    if (!suggestion?.prediction) return;
-
-    requestSequenceRef.current += 1;
-    setAddressSelecting(true);
-    setSuggestionsOpen(false);
-    setActiveSuggestionIndex(-1);
-    setAddressError('');
-
-    try {
-      const place = suggestion.prediction.toPlace();
-      await place.fetchFields({
-        fields: ['id', 'formattedAddress', 'addressComponents', 'location'],
-      });
-
-      const normalizedPlace = normalizePlace(place);
-
-      if (!normalizedPlace.isValid) {
-        setVerifiedAddress(null);
-        setAddressTouched(true);
-        setAddressError(ADDRESS_INCOMPLETE_MESSAGE);
-        return;
-      }
-
-      setVerifiedAddress(normalizedPlace);
-      setAddressText(normalizedPlace.formattedAddress);
-      setAddressTouched(true);
-      setAddressError('');
-      setSuggestions([]);
-      autocompleteSessionRef.current = null;
-    } catch {
-      setVerifiedAddress(null);
-      setAddressTouched(true);
-      setAddressError(ADDRESS_UNAVAILABLE_MESSAGE);
-    } finally {
-      setAddressSelecting(false);
-    }
-  };
-
-  const handleAddressKeyDown = (event) => {
-    if (event.key === 'Escape') {
-      setSuggestionsOpen(false);
-      setActiveSuggestionIndex(-1);
-      return;
-    }
-
-    if (!suggestionsOpen || suggestions.length === 0) return;
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      setActiveSuggestionIndex((current) => (current + 1) % suggestions.length);
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      setActiveSuggestionIndex((current) =>
-        current <= 0 ? suggestions.length - 1 : current - 1,
-      );
-      return;
-    }
-
-    if (event.key === 'Enter' && activeSuggestionIndex >= 0) {
-      event.preventDefault();
-      selectSuggestion(suggestions[activeSuggestionIndex]);
-    }
   };
 
   const handleStartSubmit = (event) => {
@@ -947,10 +777,6 @@ export default function AddressForm() {
     setEmail('');
     setTouched({ phone: false, email: false });
     setStartAttempted(false);
-    setSuggestions([]);
-    setSuggestionsOpen(false);
-    setActiveSuggestionIndex(-1);
-    autocompleteSessionRef.current = null;
     window.setTimeout(() => getOfferButtonRef.current?.focus(), 0);
   };
 
@@ -960,7 +786,7 @@ export default function AddressForm() {
         <div className="lead-intake-grid">
           <div className="lead-field lead-address-field">
             <label htmlFor="property-address">Property Address</label>
-            <div ref={addressFieldWrapRef} className="address-field-wrap">
+            <div className="address-field-wrap">
               <div
                 className={`input-shell places-shell ${displayedAddressError ? 'input-shell-error' : ''}`}
               >
@@ -976,55 +802,15 @@ export default function AddressForm() {
                   value={addressText}
                   onBlur={handleAddressBlur}
                   onChange={handleAddressChange}
-                  onFocus={handleAddressFocus}
-                  onKeyDown={handleAddressKeyDown}
                   aria-autocomplete="list"
-                  aria-controls={ADDRESS_SUGGESTIONS_ID}
-                  aria-expanded={suggestionsOpen ? 'true' : 'false'}
-                  aria-activedescendant={activeSuggestionId}
                   aria-invalid={Boolean(displayedAddressError)}
                   aria-describedby={addressDescribedBy}
                 />
               </div>
-
-              {suggestionsOpen && suggestions.length > 0 && (
-                <div
-                  id={ADDRESS_SUGGESTIONS_ID}
-                  className="address-suggestions"
-                  role="listbox"
-                  aria-label="Property address suggestions"
-                >
-                  {suggestions.map((suggestion, index) => (
-                    <button
-                      key={`${suggestion.id}-${suggestion.text}`}
-                      id={`address-suggestion-${index}`}
-                      type="button"
-                      className={`address-suggestion ${
-                        activeSuggestionIndex === index ? 'address-suggestion-active' : ''
-                      }`}
-                      role="option"
-                      aria-selected={activeSuggestionIndex === index ? 'true' : 'false'}
-                      tabIndex="-1"
-                      onMouseEnter={() => setActiveSuggestionIndex(index)}
-                      onPointerDown={(event) => {
-                        event.preventDefault();
-                        selectSuggestion(suggestion);
-                      }}
-                    >
-                      {suggestion.text}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
             {mapsStatus === 'loading' && (
               <p className="field-note address-status" id="address-status" role="status">
                 Loading address search...
-              </p>
-            )}
-            {suggestionsLoading && (
-              <p className="field-note address-status" role="status">
-                Searching addresses...
               </p>
             )}
             {addressSelecting && (
