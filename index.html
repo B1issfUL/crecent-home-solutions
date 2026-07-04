@@ -7,6 +7,20 @@
       name="description"
       content="Cornerstone Home Solutions is a cash home buyer. Sell your home as-is, on your timeline. No repairs, no commissions, no obligation."
     />
+    <script>
+      (function () {
+        try {
+          var savedTheme = window.localStorage.getItem('cornerstone-theme');
+          var theme =
+            savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system'
+              ? savedTheme
+              : 'system';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (error) {
+          document.documentElement.setAttribute('data-theme', 'system');
+        }
+      })();
+    </script>
     <title>Cornerstone Home Solutions | Sell Your Home As-Is</title>
   </head>
   <body>

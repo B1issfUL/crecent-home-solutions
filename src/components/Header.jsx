@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './Header.css';
 
 const NAV_LINKS = [
@@ -7,6 +7,20 @@ const NAV_LINKS = [
   { label: 'About', href: '#about' },
   { label: 'Contact', href: '#contact' },
 ];
+
+const THEME_STORAGE_KEY = 'cornerstone-theme';
+const THEME_OPTIONS = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+function getInitialThemePreference() {
+  if (typeof window === 'undefined') return 'system';
+
+  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  return THEME_OPTIONS.some((option) => option.value === storedTheme) ? storedTheme : 'system';
+}
 
 /* Simple cornerstone mark used as the placeholder logo */
 function LogoIcon() {
@@ -31,6 +45,12 @@ function LogoIcon() {
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [themePreference, setThemePreference] = useState(getInitialThemePreference);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themePreference);
+    window.localStorage.setItem(THEME_STORAGE_KEY, themePreference);
+  }, [themePreference]);
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -67,6 +87,21 @@ export default function Header() {
               </li>
             ))}
           </ul>
+          <label className="theme-control" htmlFor="theme-preference">
+            <span>Theme</span>
+            <select
+              id="theme-preference"
+              value={themePreference}
+              onChange={(event) => setThemePreference(event.target.value)}
+              aria-label="Theme preference"
+            >
+              {THEME_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <a href="#address-form" className="btn-primary header-cta" onClick={closeMenu}>
             Get Your Offer
           </a>

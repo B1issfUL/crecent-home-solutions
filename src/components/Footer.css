@@ -1,8 +1,8 @@
 .footer {
   border-top: 1px solid var(--border);
   padding: 44px 0 36px;
-  background-color: #111111;
-  color: #ffffff;
+  background-color: var(--footer-bg);
+  color: var(--footer-text);
 }
 
 .footer-top {
@@ -25,23 +25,23 @@
 }
 
 .footer-link {
-  color: #d1d5db;
+  color: var(--footer-muted);
   font-size: 0.9rem;
   transition: color 0.15s ease;
 }
 
 .footer-link:hover {
-  color: #ffffff;
+  color: var(--footer-text);
 }
 
 .footer-disclaimer {
-  color: #d1d5db;
+  color: var(--footer-muted);
   font-size: 0.82rem;
   max-width: 640px;
   margin-bottom: 14px;
 }
 
 .footer-copyright {
-  color: #d1d5db;
+  color: var(--footer-muted);
   font-size: 0.82rem;
 }

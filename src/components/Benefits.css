@@ -1,6 +1,6 @@
 .benefits {
   border-top: 1px solid var(--border);
-  background-color: #ffffff;
+  background-color: var(--panel);
 }
 
 .benefits-grid {
@@ -27,7 +27,7 @@
   height: 40px;
   flex-shrink: 0;
   border-radius: var(--radius-sm);
-  background-color: #fff7ed;
+  background-color: var(--accent-soft);
   border: 1px solid var(--border-strong);
 }
 

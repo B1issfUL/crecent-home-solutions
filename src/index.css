@@ -1,14 +1,37 @@
 /* ---------- Design tokens ---------- */
-:root {
-  --bg: #f7f7f5;
-  --panel: #ffffff;
-  --orange: #f97316;
-  --orange-hover: #ea580c;
-  --text: #111111;
-  --text-muted: #555555;
+:root,
+:root[data-theme='light'] {
+  --color-bg: #f7f7f5;
+  --color-card: #ffffff;
+  --color-text: #111111;
+  --color-muted: #555555;
+  --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
+  --color-accent: #f97316;
+  --color-accent-hover: #ea580c;
 
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
+  --bg: var(--color-bg);
+  --panel: var(--color-card);
+  --orange: var(--color-accent);
+  --orange-hover: var(--color-accent-hover);
+  --text: var(--color-text);
+  --text-muted: var(--color-muted);
+
+  --border: var(--color-border);
+  --border-strong: var(--color-border-strong);
+  --input-bg: #ffffff;
+  --surface-muted: #f9fafb;
+  --accent-soft: #fff7ed;
+  --success-bg: #f0fdf4;
+  --success-text: #166534;
+  --error-bg: #fef2f2;
+  --error-text: #b91c1c;
+  --error-border: rgba(185, 28, 28, 0.45);
+  --header-bg: rgba(255, 255, 255, 0.94);
+  --footer-bg: #111111;
+  --footer-text: #ffffff;
+  --footer-muted: #d1d5db;
+  --modal-backdrop: rgba(17, 17, 17, 0.62);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -19,6 +42,62 @@
     'Helvetica Neue', Arial, sans-serif;
 
   --container: 1160px;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --color-bg: #0f0f0f;
+  --color-card: #1a1a1a;
+  --color-text: #f9fafb;
+  --color-muted: #bdbdbd;
+  --color-border: #333333;
+  --color-border-strong: #374151;
+  --color-accent: #f97316;
+  --color-accent-hover: #ea580c;
+  --input-bg: #111111;
+  --surface-muted: #1f1f1f;
+  --accent-soft: rgba(249, 115, 22, 0.14);
+  --success-bg: #052e16;
+  --success-text: #86efac;
+  --error-bg: #450a0a;
+  --error-text: #fecaca;
+  --error-border: rgba(248, 113, 113, 0.5);
+  --header-bg: rgba(17, 17, 17, 0.94);
+  --footer-bg: #050505;
+  --footer-text: #f9fafb;
+  --footer-muted: #bdbdbd;
+  --modal-backdrop: rgba(0, 0, 0, 0.74);
+  --shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']),
+  :root[data-theme='system'] {
+    --color-bg: #0f0f0f;
+    --color-card: #1a1a1a;
+    --color-text: #f9fafb;
+    --color-muted: #bdbdbd;
+    --color-border: #333333;
+    --color-border-strong: #374151;
+    --color-accent: #f97316;
+    --color-accent-hover: #ea580c;
+    --input-bg: #111111;
+    --surface-muted: #1f1f1f;
+    --accent-soft: rgba(249, 115, 22, 0.14);
+    --success-bg: #052e16;
+    --success-text: #86efac;
+    --error-bg: #450a0a;
+    --error-text: #fecaca;
+    --error-border: rgba(248, 113, 113, 0.5);
+    --header-bg: rgba(17, 17, 17, 0.94);
+    --footer-bg: #050505;
+    --footer-text: #f9fafb;
+    --footer-muted: #bdbdbd;
+    --modal-backdrop: rgba(0, 0, 0, 0.74);
+    --shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+    color-scheme: dark;
+  }
 }
 
 /* ---------- Reset ---------- */
@@ -138,7 +217,9 @@ ul {
 /* Visible focus styles for keyboard navigation */
 a:focus-visible,
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
   outline: 3px solid var(--orange);
   outline-offset: 2px;
   border-radius: 4px;
