@@ -135,7 +135,11 @@
   margin-top: -2px;
 }
 
-.pac-container {
+.address-suggestions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
   z-index: 10000;
   overflow: hidden;
   background-color: #171026;
@@ -144,25 +148,42 @@
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
   color: var(--text);
   font-family: var(--font-sans);
-  margin-top: 8px;
 }
 
-.pac-item {
-  min-height: 48px;
-  border-top-color: rgba(255, 255, 255, 0.08);
+.address-suggestion-item {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  min-height: 52px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: transparent;
   color: var(--text-muted);
   cursor: pointer;
+  font: inherit;
   padding: 10px 14px;
+  text-align: left;
 }
 
-.pac-item:hover,
-.pac-item-selected {
+.address-suggestion-item:first-child {
+  border-top: 0;
+}
+
+.address-suggestion-item:hover,
+.address-suggestion-item.is-active {
   background-color: rgba(124, 58, 237, 0.26);
 }
 
-.pac-item-query,
-.pac-matched {
+.address-suggestion-main {
   color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.address-suggestion-secondary {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .form-submit {

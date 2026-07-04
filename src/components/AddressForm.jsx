@@ -7,6 +7,7 @@ const PHONE_HREF = 'tel:+17372050102';
 const FORM_SUBJECT = 'New Cash Home Seller Lead';
 const SUBMISSION_COOLDOWN_MS = 60_000;
 const MIN_REVIEW_TIME_MS = 2_000;
+const MIN_AUTOCOMPLETE_CHARS = 3;
 const ADDRESS_INCOMPLETE_MESSAGE =
   'Please select a complete property address from the suggestions.';
 const ADDRESS_UNAVAILABLE_MESSAGE =
@@ -148,6 +149,18 @@ function normalizePlace(place) {
     Boolean(normalized.zip);
 
   return normalized;
+}
+
+function getSuggestionText(prediction) {
+  return prediction?.text?.text || prediction?.text?.toString?.() || '';
+}
+
+function getSuggestionMainText(prediction) {
+  return prediction?.mainText?.text || prediction?.mainText?.toString?.() || getSuggestionText(prediction);
+}
+
+function getSuggestionSecondaryText(prediction) {
+  return prediction?.secondaryText?.text || prediction?.secondaryText?.toString?.() || '';
 }
 
 function getDigits(value) {
@@ -606,6 +619,9 @@ export default function AddressForm() {
   const formspreeFormId = import.meta.env.VITE_FORMSPREE_FORM_ID;
   const [mapsStatus, setMapsStatus] = useState(googleMapsApiKey ? 'loading' : 'error');
   const [addressText, setAddressText] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
   const [verifiedAddress, setVerifiedAddress] = useState(null);
   const [addressTouched, setAddressTouched] = useState(false);
   const [addressError, setAddressError] = useState('');
@@ -617,7 +633,10 @@ export default function AddressForm() {
   const [modalOpen, setModalOpen] = useState(false);
   const [successMessageVisible, setSuccessMessageVisible] = useState(false);
   const addressInputRef = useRef(null);
-  const autocompleteRef = useRef(null);
+  const placesLibraryRef = useRef(null);
+  const sessionTokenRef = useRef(null);
+  const suggestionTimerRef = useRef(null);
+  const suggestionRequestIdRef = useRef(0);
   const phoneRef = useRef(null);
   const emailRef = useRef(null);
   const getOfferButtonRef = useRef(null);
@@ -634,48 +653,14 @@ export default function AddressForm() {
     }
 
     let cancelled = false;
-    let placeChangedListener;
 
     loadGoogleMaps(googleMapsApiKey)
       .then(async () => {
-        await window.google.maps.importLibrary('places');
+        const placesLibrary = await window.google.maps.importLibrary('places');
         if (cancelled || !addressInputRef.current) return;
 
-        const autocomplete = new window.google.maps.places.Autocomplete(
-          addressInputRef.current,
-          {
-            componentRestrictions: { country: 'us' },
-            fields: ['place_id', 'formatted_address', 'address_components', 'geometry'],
-            types: ['address'],
-          },
-        );
-
-        autocompleteRef.current = autocomplete;
-        placeChangedListener = autocomplete.addListener('place_changed', () => {
-          setAddressSelecting(true);
-          setAddressError('');
-
-          const place = autocomplete.getPlace();
-          const normalizedPlace = normalizePlace(place || {});
-
-          if (!normalizedPlace.isValid) {
-            setVerifiedAddress(null);
-            setAddressTouched(true);
-            setAddressError(ADDRESS_INCOMPLETE_MESSAGE);
-            setAddressSelecting(false);
-            return;
-          }
-
-          setVerifiedAddress(normalizedPlace);
-          setAddressText(normalizedPlace.formattedAddress);
-          if (addressInputRef.current) {
-            addressInputRef.current.value = normalizedPlace.formattedAddress;
-          }
-          setAddressTouched(true);
-          setSuccessMessageVisible(false);
-          setAddressSelecting(false);
-        });
-
+        placesLibraryRef.current = placesLibrary;
+        sessionTokenRef.current = new placesLibrary.AutocompleteSessionToken();
         setMapsStatus('ready');
       })
       .catch(() => {
@@ -685,10 +670,11 @@ export default function AddressForm() {
 
     return () => {
       cancelled = true;
-      if (placeChangedListener && window.google?.maps?.event) {
-        window.google.maps.event.removeListener(placeChangedListener);
+      if (suggestionTimerRef.current) {
+        window.clearTimeout(suggestionTimerRef.current);
       }
-      autocompleteRef.current = null;
+      placesLibraryRef.current = null;
+      sessionTokenRef.current = null;
     };
   }, [googleMapsApiKey]);
 
@@ -709,10 +695,121 @@ export default function AddressForm() {
     displayedAddressError ? 'address-error' : '',
     mapsStatus === 'loading' ? 'address-status' : '',
     addressSelecting ? 'address-verifying' : '',
+    addressSuggestions.length > 0 ? 'address-suggestions' : '',
     'privacy-note',
   ]
     .filter(Boolean)
     .join(' ');
+
+  const resetSessionToken = () => {
+    const PlacesSessionToken = placesLibraryRef.current?.AutocompleteSessionToken;
+
+    if (PlacesSessionToken) {
+      sessionTokenRef.current = new PlacesSessionToken();
+    }
+  };
+
+  const clearAddressSuggestions = () => {
+    setAddressSuggestions([]);
+    setSuggestionsOpen(false);
+    setHighlightedSuggestionIndex(-1);
+  };
+
+  const fetchAddressSuggestions = (input) => {
+    if (suggestionTimerRef.current) {
+      window.clearTimeout(suggestionTimerRef.current);
+    }
+
+    const query = input.trim();
+    const placesLibrary = placesLibraryRef.current;
+    const requestId = suggestionRequestIdRef.current + 1;
+    suggestionRequestIdRef.current = requestId;
+
+    if (query.length < MIN_AUTOCOMPLETE_CHARS || mapsStatus !== 'ready' || !placesLibrary) {
+      clearAddressSuggestions();
+      return;
+    }
+
+    suggestionTimerRef.current = window.setTimeout(async () => {
+      try {
+        if (!sessionTokenRef.current) {
+          resetSessionToken();
+        }
+
+        const { suggestions } =
+          await placesLibrary.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: query,
+            includedRegionCodes: ['us'],
+            language: 'en-US',
+            region: 'us',
+            sessionToken: sessionTokenRef.current,
+          });
+
+        if (suggestionRequestIdRef.current !== requestId) return;
+
+        const nextSuggestions = suggestions
+          .map((suggestion) => suggestion.placePrediction)
+          .filter(Boolean)
+          .slice(0, 5)
+          .map((prediction, index) => ({
+            id: `${prediction.placeId || prediction.id || index}-${index}`,
+            prediction,
+            text: getSuggestionText(prediction),
+            mainText: getSuggestionMainText(prediction),
+            secondaryText: getSuggestionSecondaryText(prediction),
+          }));
+
+        setAddressSuggestions(nextSuggestions);
+        setSuggestionsOpen(nextSuggestions.length > 0);
+        setHighlightedSuggestionIndex(nextSuggestions.length > 0 ? 0 : -1);
+      } catch {
+        if (suggestionRequestIdRef.current !== requestId) return;
+
+        clearAddressSuggestions();
+        setAddressError(ADDRESS_UNAVAILABLE_MESSAGE);
+      }
+    }, 250);
+  };
+
+  const handleSuggestionSelect = async (suggestion) => {
+    if (!suggestion?.prediction) return;
+
+    setAddressSelecting(true);
+    setAddressError('');
+    clearAddressSuggestions();
+
+    try {
+      const place = suggestion.prediction.toPlace();
+
+      await place.fetchFields({
+        fields: ['id', 'formattedAddress', 'addressComponents', 'location'],
+      });
+
+      const normalizedPlace = normalizePlace(place || {});
+
+      if (!normalizedPlace.isValid) {
+        setVerifiedAddress(null);
+        setAddressTouched(true);
+        setAddressError(ADDRESS_INCOMPLETE_MESSAGE);
+        return;
+      }
+
+      setVerifiedAddress(normalizedPlace);
+      setAddressText(normalizedPlace.formattedAddress);
+      if (addressInputRef.current) {
+        addressInputRef.current.value = normalizedPlace.formattedAddress;
+      }
+      setAddressTouched(true);
+      setSuccessMessageVisible(false);
+      resetSessionToken();
+    } catch {
+      setVerifiedAddress(null);
+      setAddressTouched(true);
+      setAddressError(ADDRESS_INCOMPLETE_MESSAGE);
+    } finally {
+      setAddressSelecting(false);
+    }
+  };
 
   const focusFirstInvalidField = () => {
     if (!addressValid) {
@@ -736,14 +833,45 @@ export default function AddressForm() {
     setSuccessMessageVisible(false);
     setAddressError('');
     setAddressTouched(false);
+    setSuggestionsOpen(true);
 
     if (verifiedAddress) {
       setVerifiedAddress(null);
     }
+
+    fetchAddressSuggestions(nextValue);
   };
 
   const handleAddressBlur = () => {
     setAddressTouched(true);
+  };
+
+  const handleAddressKeyDown = (event) => {
+    if (!suggestionsOpen || addressSuggestions.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedSuggestionIndex((current) =>
+        current >= addressSuggestions.length - 1 ? 0 : current + 1,
+      );
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedSuggestionIndex((current) =>
+        current <= 0 ? addressSuggestions.length - 1 : current - 1,
+      );
+    }
+
+    if (event.key === 'Enter' && highlightedSuggestionIndex >= 0) {
+      event.preventDefault();
+      handleSuggestionSelect(addressSuggestions[highlightedSuggestionIndex]);
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      clearAddressSuggestions();
+    }
   };
 
   const handleStartSubmit = (event) => {
@@ -776,6 +904,7 @@ export default function AddressForm() {
     setVerifiedAddress(null);
     setAddressTouched(false);
     setAddressError('');
+    clearAddressSuggestions();
     if (addressInputRef.current) {
       addressInputRef.current.value = '';
     }
@@ -807,11 +936,50 @@ export default function AddressForm() {
                   placeholder="Enter your property address"
                   onBlur={handleAddressBlur}
                   onChange={handleAddressChange}
+                  onFocus={() => {
+                    if (addressSuggestions.length > 0) {
+                      setSuggestionsOpen(true);
+                    }
+                  }}
+                  onKeyDown={handleAddressKeyDown}
                   aria-autocomplete="list"
+                  aria-controls={addressSuggestions.length > 0 ? 'address-suggestions' : undefined}
+                  aria-expanded={suggestionsOpen && addressSuggestions.length > 0 ? 'true' : 'false'}
+                  aria-activedescendant={
+                    highlightedSuggestionIndex >= 0
+                      ? `address-suggestion-${highlightedSuggestionIndex}`
+                      : undefined
+                  }
                   aria-invalid={Boolean(displayedAddressError)}
                   aria-describedby={addressDescribedBy}
                 />
               </div>
+              {suggestionsOpen && addressSuggestions.length > 0 && (
+                <div className="address-suggestions" id="address-suggestions" role="listbox">
+                  {addressSuggestions.map((suggestion, index) => (
+                    <button
+                      key={suggestion.id}
+                      id={`address-suggestion-${index}`}
+                      type="button"
+                      className={`address-suggestion-item ${
+                        highlightedSuggestionIndex === index ? 'is-active' : ''
+                      }`}
+                      role="option"
+                      aria-selected={highlightedSuggestionIndex === index ? 'true' : 'false'}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setHighlightedSuggestionIndex(index)}
+                      onClick={() => handleSuggestionSelect(suggestion)}
+                    >
+                      <span className="address-suggestion-main">{suggestion.mainText}</span>
+                      {suggestion.secondaryText && (
+                        <span className="address-suggestion-secondary">
+                          {suggestion.secondaryText}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {mapsStatus === 'loading' && (
               <p className="field-note address-status" id="address-status" role="status">
