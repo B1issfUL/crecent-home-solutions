@@ -668,6 +668,9 @@ export default function AddressForm() {
 
           setVerifiedAddress(normalizedPlace);
           setAddressText(normalizedPlace.formattedAddress);
+          if (addressInputRef.current) {
+            addressInputRef.current.value = normalizedPlace.formattedAddress;
+          }
           setAddressTouched(true);
           setSuccessMessageVisible(false);
           setAddressSelecting(false);
@@ -773,6 +776,9 @@ export default function AddressForm() {
     setVerifiedAddress(null);
     setAddressTouched(false);
     setAddressError('');
+    if (addressInputRef.current) {
+      addressInputRef.current.value = '';
+    }
     setPhone('');
     setEmail('');
     setTouched({ phone: false, email: false });
@@ -799,7 +805,6 @@ export default function AddressForm() {
                   type="text"
                   autoComplete="street-address"
                   placeholder="Enter your property address"
-                  value={addressText}
                   onBlur={handleAddressBlur}
                   onChange={handleAddressChange}
                   aria-autocomplete="list"
