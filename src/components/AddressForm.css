@@ -233,6 +233,50 @@
   font-size: 0.82rem;
 }
 
+.maps-debug-panel {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-muted);
+  color: var(--text);
+  padding: 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.maps-debug-title {
+  color: var(--orange);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.maps-debug-panel dl {
+  display: grid;
+  gap: 6px;
+}
+
+.maps-debug-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1fr);
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+.maps-debug-row dt {
+  color: var(--text-muted);
+}
+
+.maps-debug-row dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
 .field-note,
 .privacy-note {
   color: var(--text-muted);

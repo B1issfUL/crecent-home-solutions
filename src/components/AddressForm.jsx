@@ -12,6 +12,8 @@ const ADDRESS_INCOMPLETE_MESSAGE =
   'Please select a complete property address from the suggestions.';
 const ADDRESS_UNAVAILABLE_MESSAGE =
   'Address search is temporarily unavailable. Please try again or call (+1) 737 205 0102.';
+const GOOGLE_KEY_PATTERN = /AIza[0-9A-Za-z_-]+/g;
+const GOOGLE_KEY_PARAM_PATTERN = /([?&]key=)[^&\s]+/g;
 
 const FORM_DEFAULTS = {
   name: '',
@@ -24,6 +26,126 @@ const FORM_DEFAULTS = {
 };
 
 let googleMapsPromise;
+
+function sanitizeDebugText(value) {
+  return String(value || '')
+    .replace(GOOGLE_KEY_PATTERN, '[redacted-google-key]')
+    .replace(GOOGLE_KEY_PARAM_PATTERN, '$1[redacted]')
+    .slice(0, 240);
+}
+
+function getSafeGoogleError(error) {
+  if (!error) {
+    return {
+      name: '',
+      message: '',
+      code: '',
+    };
+  }
+
+  return {
+    name: sanitizeDebugText(error.name || 'Error'),
+    message: sanitizeDebugText(error.message || error.toString?.() || 'Google Maps failed.'),
+    code: sanitizeDebugText(error.code || error.status || ''),
+  };
+}
+
+function getMapsFailureSignals(apiKey, safeError) {
+  const diagnosticText = `${safeError.name} ${safeError.message} ${safeError.code}`.toLowerCase();
+  const missingKey =
+    !apiKey ||
+    diagnosticText.includes('missingkeymaperror') ||
+    diagnosticText.includes('api key is missing');
+  const badReferrer =
+    diagnosticText.includes('referernotallowed') ||
+    diagnosticText.includes('unauthorizedurl') ||
+    diagnosticText.includes('not authorized');
+  const blockedClient =
+    diagnosticText.includes('apitargetblocked') ||
+    diagnosticText.includes('blocked') ||
+    diagnosticText.includes('client is blocked');
+  const disabledApi =
+    diagnosticText.includes('apinotactivated') ||
+    diagnosticText.includes('api has not been used') ||
+    diagnosticText.includes('not enabled') ||
+    diagnosticText.includes('disabled api');
+  const billingIssue =
+    diagnosticText.includes('billingnotenabled') ||
+    diagnosticText.includes('billing') ||
+    diagnosticText.includes('payment');
+
+  return {
+    missingKey,
+    badReferrer,
+    blockedClient,
+    disabledApi,
+    billingIssue,
+    likelyCause:
+      (missingKey && 'missing key') ||
+      (badReferrer && 'bad referrer') ||
+      (blockedClient && 'blocked client') ||
+      (disabledApi && 'disabled API') ||
+      (billingIssue && 'billing issue') ||
+      (safeError.message ? 'unknown Google Maps failure' : 'no failure detected'),
+  };
+}
+
+function buildMapsDebugInfo(apiKey, error, placesLibraryLoaded) {
+  const safeError = getSafeGoogleError(error);
+  const script = document.querySelector('script[data-chs-google-maps]');
+  const signals = getMapsFailureSignals(apiKey, safeError);
+
+  return {
+    origin: window.location.origin,
+    href: window.location.href,
+    keyExists: Boolean(apiKey),
+    keyLength: apiKey ? apiKey.length : 0,
+    googleMapsScriptLoaded: Boolean(script && window.google?.maps?.importLibrary),
+    googleMapsExists: Boolean(window.google?.maps),
+    placesLibraryLoaded: Boolean(placesLibraryLoaded),
+    errorName: safeError.name,
+    errorMessage: safeError.message,
+    errorCode: safeError.code,
+    ...signals,
+  };
+}
+
+function MapsDebugPanel({ debugInfo }) {
+  if (!debugInfo) return null;
+
+  const items = [
+    ['Current origin', debugInfo.origin],
+    ['Current href', debugInfo.href],
+    ['VITE_GOOGLE_MAPS_API_KEY exists', debugInfo.keyExists ? 'yes' : 'no'],
+    ['Key length', String(debugInfo.keyLength)],
+    ['Google Maps script loaded', debugInfo.googleMapsScriptLoaded ? 'yes' : 'no'],
+    ['google.maps exists', debugInfo.googleMapsExists ? 'yes' : 'no'],
+    ['Places library loaded', debugInfo.placesLibraryLoaded ? 'yes' : 'no'],
+    ['Google error name', debugInfo.errorName || 'none'],
+    ['Google error message', debugInfo.errorMessage || 'none'],
+    ['Google error code', debugInfo.errorCode || 'none'],
+    ['Looks like missing key', debugInfo.missingKey ? 'yes' : 'no'],
+    ['Looks like bad referrer', debugInfo.badReferrer ? 'yes' : 'no'],
+    ['Looks like blocked client', debugInfo.blockedClient ? 'yes' : 'no'],
+    ['Looks like disabled API', debugInfo.disabledApi ? 'yes' : 'no'],
+    ['Looks like billing issue', debugInfo.billingIssue ? 'yes' : 'no'],
+    ['Likely cause', debugInfo.likelyCause],
+  ];
+
+  return (
+    <div className="maps-debug-panel" aria-label="Google Maps debug information">
+      <p className="maps-debug-title">Google Maps debug</p>
+      <dl>
+        {items.map(([label, value]) => (
+          <div className="maps-debug-row" key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
 
 function LocationIcon() {
   return (
@@ -74,11 +196,25 @@ function loadGoogleMaps(apiKey) {
       const timeout = window.setTimeout(() => {
         reject(new Error('Google Maps did not finish loading.'));
       }, 12000);
+      const previousAuthFailure = window.gm_authFailure;
 
       window[callbackName] = () => {
         window.clearTimeout(timeout);
         delete window[callbackName];
         resolve(window.google);
+      };
+      window.gm_authFailure = () => {
+        window.clearTimeout(timeout);
+        delete window[callbackName];
+
+        if (previousAuthFailure) {
+          previousAuthFailure();
+        }
+
+        const error = new Error('Google Maps authentication failed.');
+        error.name = 'GoogleMapsAuthFailure';
+        error.code = 'gm_authFailure';
+        reject(error);
       };
 
       script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
@@ -617,7 +753,10 @@ function LeadModal(props) {
 export default function AddressForm() {
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const formspreeFormId = import.meta.env.VITE_FORMSPREE_FORM_ID;
+  const mapsDebugEnabled =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debugMaps') === '1';
   const [mapsStatus, setMapsStatus] = useState(googleMapsApiKey ? 'loading' : 'error');
+  const [mapsDebugError, setMapsDebugError] = useState(null);
   const [addressText, setAddressText] = useState('');
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -645,9 +784,16 @@ export default function AddressForm() {
   const emailValid = useMemo(() => isValidEmail(email), [email]);
   const addressValid = Boolean(verifiedAddress?.isValid);
   const canContinue = mapsStatus === 'ready' && addressValid && phoneValid && emailValid;
+  const mapsDebugInfo = mapsDebugEnabled
+    ? buildMapsDebugInfo(googleMapsApiKey, mapsDebugError, Boolean(placesLibraryRef.current))
+    : null;
 
   useEffect(() => {
     if (!googleMapsApiKey) {
+      const error = new Error('VITE_GOOGLE_MAPS_API_KEY is missing.');
+      error.name = 'MissingGoogleMapsKey';
+      error.code = 'missing_key';
+      setMapsDebugError(error);
       setMapsStatus('error');
       return;
     }
@@ -656,15 +802,23 @@ export default function AddressForm() {
 
     loadGoogleMaps(googleMapsApiKey)
       .then(async () => {
-        const placesLibrary = await window.google.maps.importLibrary('places');
-        if (cancelled || !addressInputRef.current) return;
+        try {
+          const placesLibrary = await window.google.maps.importLibrary('places');
+          if (cancelled || !addressInputRef.current) return;
 
-        placesLibraryRef.current = placesLibrary;
-        sessionTokenRef.current = new placesLibrary.AutocompleteSessionToken();
-        setMapsStatus('ready');
+          placesLibraryRef.current = placesLibrary;
+          sessionTokenRef.current = new placesLibrary.AutocompleteSessionToken();
+          setMapsDebugError(null);
+          setMapsStatus('ready');
+        } catch (error) {
+          if (cancelled) return;
+          setMapsDebugError(error);
+          setMapsStatus('error');
+        }
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return;
+        setMapsDebugError(error);
         setMapsStatus('error');
       });
 
@@ -762,10 +916,11 @@ export default function AddressForm() {
         setAddressSuggestions(nextSuggestions);
         setSuggestionsOpen(nextSuggestions.length > 0);
         setHighlightedSuggestionIndex(nextSuggestions.length > 0 ? 0 : -1);
-      } catch {
+      } catch (error) {
         if (suggestionRequestIdRef.current !== requestId) return;
 
         clearAddressSuggestions();
+        setMapsDebugError(error);
         setAddressError(ADDRESS_UNAVAILABLE_MESSAGE);
       }
     }, 250);
@@ -1006,6 +1161,7 @@ export default function AddressForm() {
                 )}
               </p>
             )}
+            {mapsDebugEnabled && <MapsDebugPanel debugInfo={mapsDebugInfo} />}
             {addressTouched && addressValid && (
               <p className="feedback-success compact">Address verified.</p>
             )}
