@@ -1,0 +1,132 @@
+.admin-page {
+  min-height: calc(100vh - 72px);
+  padding: 72px 24px;
+  background-color: var(--bg);
+}
+
+.admin-shell {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.admin-header {
+  margin-bottom: 28px;
+}
+
+.admin-header h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+}
+
+.admin-header p,
+.admin-copy {
+  color: var(--text-muted);
+}
+
+.admin-panel {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.admin-form {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  padding-bottom: 6px;
+}
+
+.admin-field {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.admin-field input {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--input-bg);
+  color: var(--text);
+  padding: 12px 14px;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.admin-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--input-bg);
+  color: var(--text);
+  font-weight: 600;
+  padding: 11px 18px;
+  cursor: pointer;
+}
+
+.admin-secondary-button:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.admin-message {
+  margin-top: 16px;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-weight: 600;
+}
+
+.admin-message.success {
+  color: var(--success-text);
+  background-color: var(--success-bg);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.admin-message.error {
+  color: var(--error-text);
+  background-color: var(--error-bg);
+  border: 1px solid var(--error-border);
+}
+
+.admin-panel > .admin-message:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 560px) {
+  .admin-page {
+    padding: 48px 18px;
+  }
+
+  .admin-panel {
+    padding: 22px;
+  }
+
+  .admin-account-row,
+  .admin-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

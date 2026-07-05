@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cornerstone Home Solutions</title>
+    <script>
+      (function () {
+        var basePath = '/cornerstone-home-solutions/';
+        var normalizedPath = window.location.pathname.replace(/\/$/, '');
+
+        if (normalizedPath === basePath.replace(/\/$/, '') + '/admin') {
+          window.location.replace(basePath + '#/admin');
+          return;
+        }
+
+        window.location.replace(basePath);
+      })();
+    </script>
+  </head>
+  <body>
+    Redirecting...
+  </body>
+</html>
