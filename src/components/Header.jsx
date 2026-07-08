@@ -1,25 +1,23 @@
 import { useEffect, useState } from 'react';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import './Header.css';
 
 const NAV_LINKS = [
-  { label: 'Solutions', href: '#solutions' },
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'About', href: '#about' },
-  { label: 'Contact', href: '#contact' },
+  { labelKey: 'nav.solutions', href: '#solutions' },
+  { labelKey: 'nav.howItWorks', href: '#how-it-works' },
+  { labelKey: 'nav.about', href: '#about' },
+  { labelKey: 'nav.contact', href: '#contact' },
 ];
 
 const THEME_STORAGE_KEY = 'cornerstone-theme';
-const THEME_OPTIONS = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-];
+const THEME_OPTIONS = ['system', 'light', 'dark'];
+const LANGUAGE_OPTIONS = ['en', 'es', 'system'];
 
 function getInitialThemePreference() {
   if (typeof window === 'undefined') return 'system';
 
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-  return THEME_OPTIONS.some((option) => option.value === storedTheme) ? storedTheme : 'system';
+  return THEME_OPTIONS.includes(storedTheme) ? storedTheme : 'system';
 }
 
 /* Simple cornerstone mark used as the placeholder logo */
@@ -44,6 +42,7 @@ function LogoIcon() {
 }
 
 export default function Header() {
+  const { languagePreference, setLanguagePreference, t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [themePreference, setThemePreference] = useState(getInitialThemePreference);
 
@@ -59,7 +58,7 @@ export default function Header() {
       <div className="container header-inner">
         <a href="#top" className="brand" onClick={closeMenu}>
           <LogoIcon />
-          <span className="brand-name">Cornerstone Home Solutions</span>
+          <span className="brand-name">{t('common.brand')}</span>
         </a>
 
         <button
@@ -69,41 +68,56 @@ export default function Header() {
           aria-controls="primary-navigation"
           onClick={() => setMenuOpen((open) => !open)}
         >
-          <span className="sr-only">{menuOpen ? 'Close menu' : 'Open menu'}</span>
+          <span className="sr-only">{menuOpen ? t('nav.closeMenu') : t('nav.openMenu')}</span>
           <span className={`menu-bar ${menuOpen ? 'open' : ''}`} aria-hidden="true" />
         </button>
 
         <nav
           id="primary-navigation"
           className={`nav ${menuOpen ? 'nav-open' : ''}`}
-          aria-label="Primary"
+          aria-label={t('nav.primaryAria')}
         >
           <ul className="nav-list">
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
                 <a href={link.href} className="nav-link" onClick={closeMenu}>
-                  {link.label}
+                  {t(link.labelKey)}
                 </a>
               </li>
             ))}
           </ul>
-          <label className="theme-control" htmlFor="theme-preference">
-            <span>Theme</span>
+          <label className="header-select-control theme-control" htmlFor="theme-preference">
+            <span>{t('theme.label')}</span>
             <select
               id="theme-preference"
               value={themePreference}
               onChange={(event) => setThemePreference(event.target.value)}
-              aria-label="Theme preference"
+              aria-label={t('theme.aria')}
             >
               {THEME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+                <option key={option} value={option}>
+                  {t(`theme.options.${option}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="header-select-control language-control" htmlFor="language-preference">
+            <span>{t('language.label')}</span>
+            <select
+              id="language-preference"
+              value={languagePreference}
+              onChange={(event) => setLanguagePreference(event.target.value)}
+              aria-label={t('language.aria')}
+            >
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {t(`language.options.${option}`)}
                 </option>
               ))}
             </select>
           </label>
           <a href="#address-form" className="btn-primary header-cta" onClick={closeMenu}>
-            Get Your Offer
+            {t('common.getYourOffer')}
           </a>
         </nav>
       </div>

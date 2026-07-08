@@ -1,20 +1,21 @@
 import './StatisticsPanel.css';
 import useHomepageStats from '../hooks/useHomepageStats.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { formatHomepageStats } from '../lib/homepageStats.js';
 
-const PURCHASE_OPTIONS = ['Cash Purchase'];
-
 export default function StatisticsPanel() {
+  const { t } = useLanguage();
   const { stats, status } = useHomepageStats();
-  const formattedStats = formatHomepageStats(stats);
+  const formattedStats = formatHomepageStats(stats, t('stats.metrics'));
+  const purchaseOptions = t('stats.purchaseOptions');
 
   return (
-    <aside className="stats-panel" aria-label="Property review status">
+    <aside className="stats-panel" aria-label={t('stats.aria')}>
       <div className="stats-header">
-        <h2 className="stats-title">Property Review Status</h2>
+        <h2 className="stats-title">{t('stats.title')}</h2>
         <span className="stats-status">
           <span className="status-dot" aria-hidden="true" />
-          {status === 'loading' ? 'Syncing' : 'Ready'}
+          {status === 'loading' ? t('stats.syncing') : t('stats.ready')}
         </span>
       </div>
 
@@ -29,9 +30,9 @@ export default function StatisticsPanel() {
 
       <div className="stats-divider" role="presentation" />
 
-      <h3 className="options-title">Purchase Method</h3>
+      <h3 className="options-title">{t('stats.purchaseMethod')}</h3>
       <ul className="options-list">
-        {PURCHASE_OPTIONS.map((option) => (
+        {purchaseOptions.map((option) => (
           <li key={option} className="option-tag">
             {option}
           </li>

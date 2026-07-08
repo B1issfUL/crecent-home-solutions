@@ -24,8 +24,17 @@ export function normalizeHomepageStats(data = {}) {
   };
 }
 
-export function formatHomepageStats(stats) {
+const DEFAULT_STAT_LABELS = {
+  propertiesReviewed: 'Properties Reviewed',
+  estimatedTimeline: 'Estimated Timeline',
+  estimatedCashOffer: 'Estimated Cash Offer',
+  reviewComplete: 'Review Complete',
+  days: 'Days',
+};
+
+export function formatHomepageStats(stats, labels = DEFAULT_STAT_LABELS) {
   const normalizedStats = normalizeHomepageStats(stats);
+  const metricLabels = { ...DEFAULT_STAT_LABELS, ...labels };
   const currencyFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -35,19 +44,19 @@ export function formatHomepageStats(stats) {
   return [
     {
       value: String(normalizedStats.propertiesReviewed),
-      label: 'Properties Reviewed',
+      label: metricLabels.propertiesReviewed,
     },
     {
-      value: `${normalizedStats.estimatedTimelineDays} Days`,
-      label: 'Estimated Timeline',
+      value: `${normalizedStats.estimatedTimelineDays} ${metricLabels.days}`,
+      label: metricLabels.estimatedTimeline,
     },
     {
       value: currencyFormatter.format(normalizedStats.estimatedCashOffer),
-      label: 'Estimated Cash Offer',
+      label: metricLabels.estimatedCashOffer,
     },
     {
       value: `${normalizedStats.reviewCompletePercent}%`,
-      label: 'Review Complete',
+      label: metricLabels.reviewComplete,
     },
   ];
 }

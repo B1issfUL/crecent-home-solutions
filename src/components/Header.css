@@ -31,7 +31,7 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 18px;
 }
 
 .nav-list {
@@ -56,7 +56,7 @@
   font-size: 0.95rem;
 }
 
-.theme-control {
+.header-select-control {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -65,7 +65,7 @@
   font-weight: 600;
 }
 
-.theme-control select {
+.header-select-control select {
   min-height: 38px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -185,12 +185,12 @@
     width: 100%;
   }
 
-  .theme-control {
+  .header-select-control {
     justify-content: space-between;
     padding: 8px;
   }
 
-  .theme-control select {
+  .header-select-control select {
     min-width: 132px;
   }
 

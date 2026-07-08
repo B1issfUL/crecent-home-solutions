@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, ValidationError } from '@formspree/react';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import './AddressForm.css';
 
 const PHONE_DISPLAY = '(+1) 737 205 0102';
 const PHONE_HREF = 'tel:+17372050102';
-const FORM_SUBJECT = 'New Cash Home Seller Lead';
 const SUBMISSION_COOLDOWN_MS = 60_000;
 const MIN_REVIEW_TIME_MS = 2_000;
 const MIN_AUTOCOMPLETE_CHARS = 3;
-const ADDRESS_INCOMPLETE_MESSAGE =
-  'Please select a complete property address from the suggestions.';
-const ADDRESS_UNAVAILABLE_MESSAGE =
-  'Address search is temporarily unavailable. Please try again or call (+1) 737 205 0102.';
+const ADDRESS_ERROR_INCOMPLETE = 'addressIncomplete';
+const ADDRESS_ERROR_UNAVAILABLE = 'addressUnavailable';
 const GOOGLE_KEY_PATTERN = /AIza[0-9A-Za-z_-]+/g;
 const GOOGLE_KEY_PARAM_PATTERN = /([?&]key=)[^&\s]+/g;
 
@@ -111,30 +109,33 @@ function buildMapsDebugInfo(apiKey, error, placesLibraryLoaded) {
 }
 
 function MapsDebugPanel({ debugInfo }) {
+  const { t } = useLanguage();
+
   if (!debugInfo) return null;
 
+  const yesNo = (value) => (value ? t('mapsDebug.yes') : t('mapsDebug.no'));
   const items = [
-    ['Current origin', debugInfo.origin],
-    ['Current href', debugInfo.href],
-    ['VITE_GOOGLE_MAPS_API_KEY exists', debugInfo.keyExists ? 'yes' : 'no'],
-    ['Key length', String(debugInfo.keyLength)],
-    ['Google Maps script loaded', debugInfo.googleMapsScriptLoaded ? 'yes' : 'no'],
-    ['google.maps exists', debugInfo.googleMapsExists ? 'yes' : 'no'],
-    ['Places library loaded', debugInfo.placesLibraryLoaded ? 'yes' : 'no'],
-    ['Google error name', debugInfo.errorName || 'none'],
-    ['Google error message', debugInfo.errorMessage || 'none'],
-    ['Google error code', debugInfo.errorCode || 'none'],
-    ['Looks like missing key', debugInfo.missingKey ? 'yes' : 'no'],
-    ['Looks like bad referrer', debugInfo.badReferrer ? 'yes' : 'no'],
-    ['Looks like blocked client', debugInfo.blockedClient ? 'yes' : 'no'],
-    ['Looks like disabled API', debugInfo.disabledApi ? 'yes' : 'no'],
-    ['Looks like billing issue', debugInfo.billingIssue ? 'yes' : 'no'],
-    ['Likely cause', debugInfo.likelyCause],
+    [t('mapsDebug.currentOrigin'), debugInfo.origin],
+    [t('mapsDebug.currentHref'), debugInfo.href],
+    [t('mapsDebug.keyExists'), yesNo(debugInfo.keyExists)],
+    [t('mapsDebug.keyLength'), String(debugInfo.keyLength)],
+    [t('mapsDebug.scriptLoaded'), yesNo(debugInfo.googleMapsScriptLoaded)],
+    [t('mapsDebug.mapsExists'), yesNo(debugInfo.googleMapsExists)],
+    [t('mapsDebug.placesLoaded'), yesNo(debugInfo.placesLibraryLoaded)],
+    [t('mapsDebug.errorName'), debugInfo.errorName || t('mapsDebug.none')],
+    [t('mapsDebug.errorMessage'), debugInfo.errorMessage || t('mapsDebug.none')],
+    [t('mapsDebug.errorCode'), debugInfo.errorCode || t('mapsDebug.none')],
+    [t('mapsDebug.missingKey'), yesNo(debugInfo.missingKey)],
+    [t('mapsDebug.badReferrer'), yesNo(debugInfo.badReferrer)],
+    [t('mapsDebug.blockedClient'), yesNo(debugInfo.blockedClient)],
+    [t('mapsDebug.disabledApi'), yesNo(debugInfo.disabledApi)],
+    [t('mapsDebug.billingIssue'), yesNo(debugInfo.billingIssue)],
+    [t('mapsDebug.likelyCause'), debugInfo.likelyCause],
   ];
 
   return (
-    <div className="maps-debug-panel" aria-label="Google Maps debug information">
-      <p className="maps-debug-title">Google Maps debug</p>
+    <div className="maps-debug-panel" aria-label={t('mapsDebug.aria')}>
+      <p className="maps-debug-title">{t('mapsDebug.title')}</p>
       <dl>
         {items.map(([label, value]) => (
           <div className="maps-debug-row" key={label}>
@@ -343,6 +344,7 @@ function FormspreeLeadModal(props) {
 }
 
 function LeadModal(props) {
+  const { t } = useLanguage();
   const {
     verifiedAddress,
     initialPhone,
@@ -441,28 +443,27 @@ function LeadModal(props) {
     const nextErrors = {};
 
     if (!verifiedAddress?.isValid) {
-      nextErrors.property_address = ADDRESS_INCOMPLETE_MESSAGE;
+      nextErrors.property_address = t('form.errors.addressIncomplete');
     }
 
     if (fields.name.trim().length < 2) {
-      nextErrors.name = 'Please enter your full name.';
+      nextErrors.name = t('form.modal.validation.name');
     }
 
     if (!isValidPhone(fields.phone)) {
-      nextErrors.phone = 'Please enter a valid phone number with at least 10 digits.';
+      nextErrors.phone = t('form.errors.phoneInvalid');
     }
 
     if (!isValidEmail(fields.email)) {
-      nextErrors.email = 'Please enter a valid email address.';
+      nextErrors.email = t('form.errors.emailInvalid');
     }
 
     if (!fields.preferred_contact) {
-      nextErrors.preferred_contact = 'Please choose how you prefer to be contacted.';
+      nextErrors.preferred_contact = t('form.modal.validation.preferredContact');
     }
 
     if (!fields.contact_consent) {
-      nextErrors.contact_consent =
-        'Please agree that Cornerstone Home Solutions may contact you about this property.';
+      nextErrors.contact_consent = t('form.modal.validation.consent');
     }
 
     return nextErrors;
@@ -496,7 +497,7 @@ function LeadModal(props) {
     }
 
     if (!reviewReady) {
-      setSubmitMessage('Please take a moment to review your information before submitting.');
+      setSubmitMessage('reviewWait');
       return;
     }
 
@@ -504,7 +505,7 @@ function LeadModal(props) {
     const lastSubmission = Number(window.sessionStorage.getItem('chs_last_submission_at') || 0);
 
     if (lastSubmission && now - lastSubmission < SUBMISSION_COOLDOWN_MS) {
-      setSubmitMessage('Please wait before sending another request.');
+      setSubmitMessage('cooldown');
       return;
     }
 
@@ -530,16 +531,16 @@ function LeadModal(props) {
       >
         <div className="lead-modal-header">
           <div>
-            <span className="lead-modal-kicker">Next Step</span>
-            <h2 id="lead-modal-title">Where should we contact you?</h2>
+            <span className="lead-modal-kicker">{t('form.modal.nextStep')}</span>
+            <h2 id="lead-modal-title">{t('form.modal.title')}</h2>
           </div>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close form">
+          <button type="button" className="modal-close" onClick={onClose} aria-label={t('form.modal.closeForm')}>
             x
           </button>
         </div>
 
         <form className="lead-details-form" onSubmit={handleLeadSubmit} noValidate>
-          <input type="hidden" name="subject" value={FORM_SUBJECT} />
+          <input type="hidden" name="subject" value={t('form.subject')} />
           <input type="hidden" name="property_address" value={verifiedAddress.formattedAddress} />
           <input type="hidden" name="google_place_id" value={verifiedAddress.placeId} />
           <input type="hidden" name="address_street_number" value={verifiedAddress.streetNumber} />
@@ -552,7 +553,7 @@ function LeadModal(props) {
           <input type="hidden" name="address_longitude" value={verifiedAddress.longitude} />
 
           <label className="lead-field">
-            <span>Property Address</span>
+            <span>{t('form.propertyAddress')}</span>
             <input
               type="text"
               value={verifiedAddress.formattedAddress}
@@ -561,14 +562,14 @@ function LeadModal(props) {
             />
           </label>
           <p id="property-address-review-note" className="field-note">
-            To change the address, choose a new suggestion from the address search.
+            {t('form.modal.reviewAddressNote')}
           </p>
           <button type="button" className="text-button" onClick={onChangeAddress}>
-            Change address
+            {t('form.modal.changeAddress')}
           </button>
 
           <label className="lead-field" htmlFor="lead-name">
-            <span>Full Name</span>
+            <span>{t('form.modal.fullName')}</span>
             <input
               id="lead-name"
               ref={firstInputRef}
@@ -587,10 +588,15 @@ function LeadModal(props) {
               {errors.name}
             </p>
           )}
-          <ValidationError className="feedback-error" prefix="Name" field="name" errors={formspreeState.errors} />
+          <ValidationError
+            className="feedback-error"
+            prefix={t('form.modal.fieldPrefixes.name')}
+            field="name"
+            errors={formspreeState.errors}
+          />
 
           <label className="lead-field" htmlFor="lead-phone">
-            <span>Phone Number</span>
+            <span>{t('form.phoneNumber')}</span>
             <input
               id="lead-phone"
               ref={fieldRefs.phone}
@@ -609,10 +615,15 @@ function LeadModal(props) {
               {errors.phone}
             </p>
           )}
-          <ValidationError className="feedback-error" prefix="Phone" field="phone" errors={formspreeState.errors} />
+          <ValidationError
+            className="feedback-error"
+            prefix={t('form.modal.fieldPrefixes.phone')}
+            field="phone"
+            errors={formspreeState.errors}
+          />
 
           <label className="lead-field" htmlFor="lead-email">
-            <span>Email Address</span>
+            <span>{t('form.emailAddress')}</span>
             <input
               id="lead-email"
               ref={fieldRefs.email}
@@ -631,10 +642,15 @@ function LeadModal(props) {
               {errors.email}
             </p>
           )}
-          <ValidationError className="feedback-error" prefix="Email" field="email" errors={formspreeState.errors} />
+          <ValidationError
+            className="feedback-error"
+            prefix={t('form.modal.fieldPrefixes.email')}
+            field="email"
+            errors={formspreeState.errors}
+          />
 
           <label className="lead-field" htmlFor="preferred-contact">
-            <span>Preferred Contact Method</span>
+            <span>{t('form.modal.preferredContactMethod')}</span>
             <select
               id="preferred-contact"
               ref={fieldRefs.preferred_contact}
@@ -645,9 +661,9 @@ function LeadModal(props) {
               aria-invalid={Boolean(errors.preferred_contact)}
               aria-describedby={errors.preferred_contact ? 'preferred-contact-error' : undefined}
             >
-              <option>Phone Call</option>
-              <option>Text Message</option>
-              <option>Email</option>
+              <option value="Phone Call">{t('form.modal.contactOptions.phoneCall')}</option>
+              <option value="Text Message">{t('form.modal.contactOptions.textMessage')}</option>
+              <option value="Email">{t('form.modal.contactOptions.email')}</option>
             </select>
           </label>
           {errors.preferred_contact && (
@@ -657,11 +673,11 @@ function LeadModal(props) {
           )}
 
           <label className="lead-field" htmlFor="property-details">
-            <span>Additional Property Details</span>
+            <span>{t('form.modal.propertyDetails')}</span>
             <textarea
               id="property-details"
               name="property_details"
-              placeholder="Tell us anything we should know about the property."
+              placeholder={t('form.modal.propertyDetailsPlaceholder')}
               value={fields.property_details}
               onChange={handleFieldChange}
               rows="4"
@@ -691,8 +707,7 @@ function LeadModal(props) {
               aria-describedby={errors.contact_consent ? 'contact-consent-error' : undefined}
             />
             <span>
-              I agree that Cornerstone Home Solutions may contact me about this property using the
-              information I provided.
+              {t('form.modal.consent')}
             </span>
           </label>
           {errors.contact_consent && (
@@ -703,8 +718,7 @@ function LeadModal(props) {
 
           {!formspreeConfigured && (
             <p className="feedback-error">
-              Form submissions are not configured yet. Add the Formspree form ID before accepting
-              leads.
+              {t('form.modal.notConfigured')}
             </p>
           )}
 
@@ -712,21 +726,21 @@ function LeadModal(props) {
             <p className="feedback-error" aria-live="polite">
               {submitMessage === 'send_failed' ? (
                 <>
-                  We could not send your information. Please try again or call{' '}
+                  {t('form.modal.sendFailedPrefix')}{' '}
                   <a href={PHONE_HREF} className="inline-link">
                     {PHONE_DISPLAY}
                   </a>
                   .
                 </>
               ) : (
-                submitMessage
+                t(`form.modal.messages.${submitMessage}`)
               )}
             </p>
           )}
 
           {formspreeState.errors && submitMessage !== 'send_failed' && (
             <p className="feedback-error" aria-live="polite">
-              We could not send your information. Please try again or call{' '}
+              {t('form.modal.sendFailedPrefix')}{' '}
               <a href={PHONE_HREF} className="inline-link">
                 {PHONE_DISPLAY}
               </a>
@@ -742,7 +756,7 @@ function LeadModal(props) {
             disabled={submitDisabled}
             aria-disabled={submitDisabled ? 'true' : 'false'}
           >
-            {formspreeState.submitting ? 'Sending...' : 'Submit Information'}
+            {formspreeState.submitting ? t('form.modal.sending') : t('form.modal.submitInformation')}
           </button>
         </form>
       </div>
@@ -751,6 +765,7 @@ function LeadModal(props) {
 }
 
 export default function AddressForm() {
+  const { t } = useLanguage();
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const formspreeFormId = import.meta.env.VITE_FORMSPREE_FORM_ID;
   const mapsDebugEnabled =
@@ -834,17 +849,17 @@ export default function AddressForm() {
 
   const phoneError =
     (touched.phone || startAttempted) && !phoneValid
-      ? 'Please enter a valid phone number with at least 10 digits.'
+      ? t('form.errors.phoneInvalid')
       : '';
   const emailError =
-    (touched.email || startAttempted) && !emailValid ? 'Please enter a valid email address.' : '';
+    (touched.email || startAttempted) && !emailValid ? t('form.errors.emailInvalid') : '';
 
-  const addressSearchUnavailable = addressError === ADDRESS_UNAVAILABLE_MESSAGE || mapsStatus === 'error';
+  const addressSearchUnavailable = addressError === ADDRESS_ERROR_UNAVAILABLE || mapsStatus === 'error';
   const displayedAddressError =
     addressSearchUnavailable && (addressTouched || startAttempted || addressText.trim())
-      ? ADDRESS_UNAVAILABLE_MESSAGE
+      ? ADDRESS_ERROR_UNAVAILABLE
       : addressError ||
-        ((addressTouched || startAttempted) && !addressValid ? ADDRESS_INCOMPLETE_MESSAGE : '');
+        ((addressTouched || startAttempted) && !addressValid ? ADDRESS_ERROR_INCOMPLETE : '');
   const addressDescribedBy = [
     displayedAddressError ? 'address-error' : '',
     mapsStatus === 'loading' ? 'address-status' : '',
@@ -921,7 +936,7 @@ export default function AddressForm() {
 
         clearAddressSuggestions();
         setMapsDebugError(error);
-        setAddressError(ADDRESS_UNAVAILABLE_MESSAGE);
+        setAddressError(ADDRESS_ERROR_UNAVAILABLE);
       }
     }, 250);
   };
@@ -945,7 +960,7 @@ export default function AddressForm() {
       if (!normalizedPlace.isValid) {
         setVerifiedAddress(null);
         setAddressTouched(true);
-        setAddressError(ADDRESS_INCOMPLETE_MESSAGE);
+        setAddressError(ADDRESS_ERROR_INCOMPLETE);
         return;
       }
 
@@ -960,7 +975,7 @@ export default function AddressForm() {
     } catch {
       setVerifiedAddress(null);
       setAddressTouched(true);
-      setAddressError(ADDRESS_INCOMPLETE_MESSAGE);
+      setAddressError(ADDRESS_ERROR_INCOMPLETE);
     } finally {
       setAddressSelecting(false);
     }
@@ -1075,7 +1090,7 @@ export default function AddressForm() {
       <form className="address-form lead-intake-form" onSubmit={handleStartSubmit} noValidate>
         <div className="lead-intake-grid">
           <div className="lead-field lead-address-field">
-            <label htmlFor="property-address">Property Address</label>
+            <label htmlFor="property-address">{t('form.propertyAddress')}</label>
             <div className="address-field-wrap">
               <div
                 className={`input-shell places-shell ${displayedAddressError ? 'input-shell-error' : ''}`}
@@ -1088,7 +1103,7 @@ export default function AddressForm() {
                   name="property_address"
                   type="text"
                   autoComplete="street-address"
-                  placeholder="Enter your property address"
+                  placeholder={t('form.addressPlaceholder')}
                   onBlur={handleAddressBlur}
                   onChange={handleAddressChange}
                   onFocus={() => {
@@ -1138,37 +1153,37 @@ export default function AddressForm() {
             </div>
             {mapsStatus === 'loading' && (
               <p className="field-note address-status" id="address-status" role="status">
-                Loading address search...
+                {t('form.addressLoading')}
               </p>
             )}
             {addressSelecting && (
               <p className="field-note address-status" id="address-verifying" role="status">
-                Verifying address...
+                {t('form.addressVerifying')}
               </p>
             )}
             {displayedAddressError && (
               <p className="feedback-error" id="address-error">
                 {addressSearchUnavailable ? (
                   <>
-                    Address search is temporarily unavailable. Please try again or call{' '}
+                    {t('form.errors.addressUnavailablePrefix')}{' '}
                     <a href={PHONE_HREF} className="inline-link">
                       {PHONE_DISPLAY}
                     </a>
                     .
                   </>
                 ) : (
-                  displayedAddressError
+                  t(`form.errors.${displayedAddressError}`)
                 )}
               </p>
             )}
             {mapsDebugEnabled && <MapsDebugPanel debugInfo={mapsDebugInfo} />}
             {addressTouched && addressValid && (
-              <p className="feedback-success compact">Address verified.</p>
+              <p className="feedback-success compact">{t('form.addressVerified')}</p>
             )}
           </div>
 
           <label className="lead-field" htmlFor="phone">
-            <span>Phone Number</span>
+            <span>{t('form.phoneNumber')}</span>
             <input
               id="phone"
               ref={phoneRef}
@@ -1193,7 +1208,7 @@ export default function AddressForm() {
           </label>
 
           <label className="lead-field" htmlFor="email">
-            <span>Email Address</span>
+            <span>{t('form.emailAddress')}</span>
             <input
               id="email"
               ref={emailRef}
@@ -1219,7 +1234,7 @@ export default function AddressForm() {
         </div>
 
         <p id="privacy-note" className="privacy-note">
-          Your information will only be used to contact you about your property.
+          {t('form.privacyNote')}
         </p>
 
         <button
@@ -1229,16 +1244,16 @@ export default function AddressForm() {
           disabled={!canContinue}
           aria-disabled={!canContinue ? 'true' : 'false'}
         >
-          Get My Offer
+          {t('form.getMyOffer')}
         </button>
       </form>
 
       <div id="form-feedback" role="status" aria-live="polite" className="form-feedback">
         {successMessageVisible && (
           <div className="feedback-success">
-            <p>Thank you. We received your property information and will reach out soon.</p>
+            <p>{t('form.successMessage')}</p>
             <p>
-              For immediate assistance, call{' '}
+              {t('form.immediateAssistancePrefix')}{' '}
               <a href={PHONE_HREF} className="inline-link">
                 {PHONE_DISPLAY}
               </a>

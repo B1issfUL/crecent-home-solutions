@@ -1,27 +1,5 @@
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import './Benefits.css';
-
-const BENEFITS = [
-  {
-    title: 'Sell As-Is',
-    description:
-      'No repairs, no cleaning, no staging. We buy properties for cash in their current condition.',
-  },
-  {
-    title: 'Choose Your Closing Date',
-    description:
-      'Close in weeks or take the time you need. The timeline is always up to you.',
-  },
-  {
-    title: 'No Agent Commissions',
-    description:
-      'Work with us directly and keep more of your money. There are no listing fees.',
-  },
-  {
-    title: 'Simple Process',
-    description:
-      'One address, one review, one cash offer. No open houses and no drawn-out negotiations.',
-  },
-];
 
 function CheckIcon() {
   return (
@@ -45,17 +23,20 @@ function CheckIcon() {
 }
 
 export default function Benefits() {
+  const { t } = useLanguage();
+  const benefits = t('benefits.items');
+
   return (
     <section className="section benefits" id="solutions">
       <div className="container">
-        <span className="eyebrow">Solutions</span>
-        <h2 className="section-title">Why Choose Us</h2>
+        <span className="eyebrow">{t('benefits.eyebrow')}</span>
+        <h2 className="section-title">{t('benefits.title')}</h2>
         <p className="section-subtitle">
-          A direct sale built around what works for you, not the market.
+          {t('benefits.subtitle')}
         </p>
 
         <div className="benefits-grid">
-          {BENEFITS.map((benefit) => (
+          {benefits.map((benefit) => (
             <div key={benefit.title} className="benefit-card">
               <span className="benefit-icon" aria-hidden="true">
                 <CheckIcon />

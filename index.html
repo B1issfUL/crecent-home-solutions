@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Cornerstone Home Solutions is a cash home buyer. Sell your home as-is, on your timeline. No repairs, no commissions, no obligation."
+      content="Sell your home as-is for cash with Cornerstone Home Solutions. No repairs, no commissions, and no obligation."
     />
     <link rel="canonical" href="https://stonecornerhome.com/" />
+    <link rel="alternate" hreflang="en" href="https://stonecornerhome.com/" />
+    <link rel="alternate" hreflang="es" href="https://stonecornerhome.com/" />
+    <link rel="alternate" hreflang="x-default" href="https://stonecornerhome.com/" />
     <meta property="og:title" content="Cornerstone Home Solutions | Sell Your Home As-Is" />
     <meta
       property="og:description"
-      content="Cornerstone Home Solutions is a cash home buyer. Sell your home as-is, on your timeline. No repairs, no commissions, no obligation."
+      content="Sell your home as-is for cash with Cornerstone Home Solutions. No repairs, no commissions, and no obligation."
     />
     <meta property="og:url" content="https://stonecornerhome.com/" />
     <meta property="og:type" content="website" />
@@ -19,12 +22,25 @@
     <meta name="twitter:title" content="Cornerstone Home Solutions | Sell Your Home As-Is" />
     <meta
       name="twitter:description"
-      content="Cornerstone Home Solutions is a cash home buyer. Sell your home as-is, on your timeline. No repairs, no commissions, no obligation."
+      content="Sell your home as-is for cash with Cornerstone Home Solutions. No repairs, no commissions, and no obligation."
     />
     <meta name="twitter:url" content="https://stonecornerhome.com/" />
     <script>
       (function () {
         try {
+          var savedLanguage = window.localStorage.getItem('cornerstone-language');
+          var languagePreference =
+            savedLanguage === 'en' || savedLanguage === 'es' || savedLanguage === 'system'
+              ? savedLanguage
+              : 'system';
+          var preferredLanguage =
+            (window.navigator.languages && window.navigator.languages[0]) ||
+            window.navigator.language ||
+            '';
+          var systemLanguage = preferredLanguage.toLowerCase().indexOf('es') === 0 ? 'es' : 'en';
+          document.documentElement.lang =
+            languagePreference === 'system' ? systemLanguage : languagePreference;
+
           var savedTheme = window.localStorage.getItem('cornerstone-theme');
           var theme =
             savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system'

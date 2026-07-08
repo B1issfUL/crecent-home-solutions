@@ -1,23 +1,25 @@
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import './Footer.css';
 
 export default function Footer() {
+  const { t } = useLanguage();
   const year = new Date().getFullYear();
 
   return (
     <footer className="footer">
       <div className="container">
         <div className="footer-top">
-          <span className="footer-brand">Cornerstone Home Solutions</span>
-          <nav aria-label="Legal">
+          <span className="footer-brand">{t('common.brand')}</span>
+          <nav aria-label={t('nav.legalAria')}>
             <ul className="footer-links">
               <li>
                 <a href="#top" className="footer-link">
-                  Privacy Policy
+                  {t('footer.privacyPolicy')}
                 </a>
               </li>
               <li>
                 <a href="#top" className="footer-link">
-                  Terms
+                  {t('footer.terms')}
                 </a>
               </li>
             </ul>
@@ -25,12 +27,11 @@ export default function Footer() {
         </div>
 
         <p className="footer-disclaimer">
-          Submitting an address does not guarantee an offer. Property
-          information must be reviewed before any purchase terms are provided.
+          {t('footer.disclaimer')}
         </p>
 
         <p className="footer-copyright">
-          &copy; {year} Cornerstone Home Solutions. All rights reserved.
+          &copy; {year} {t('common.brand')}. {t('footer.copyright')}
         </p>
       </div>
     </footer>
